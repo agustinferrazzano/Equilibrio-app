@@ -10,4 +10,8 @@ export class Transaction {
     public price: number,
     public commission: number,
   ) {}
+
+  getTotalValue(): number {
+    return this.quantity * this.price + this.commission;
+  }
 }
