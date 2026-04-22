@@ -35,6 +35,14 @@ npm run dev -w backend
 
 Ese comando recompila primero `packages/core`, así el backend no depende de un `dist` generado a mano.
 
+Para desarrollo continuo de backend + librería compartida, abre una tercera terminal y deja el core en watch:
+
+```bash
+npm run dev -w @equilibrio/core
+```
+
+Con eso, cada cambio en `packages/core/src` vuelve a generar `dist` automáticamente.
+
 Si prefieres trabajar dentro de cada carpeta, también puedes ejecutar los mismos scripts desde `apps/frontend` y `apps/backend`.
 
 ## Verificación
@@ -53,8 +61,9 @@ npm test
 
 1. Instalar dependencias con `npm install`.
 2. Abrir dos terminales y ejecutar `npm run dev -w frontend` y `npm run dev -w backend`.
-3. Antes de compartir cambios, correr `npm run lint` y `npm run build`.
-4. Cuando agregues tests, ejecutar `npm test` para validar todos los workspaces.
+3. Si vas a tocar código compartido, abrir otra terminal con `npm run dev -w @equilibrio/core`.
+4. Antes de compartir cambios, correr `npm run lint` y `npm run build`.
+5. Cuando agregues tests, ejecutar `npm test` para validar todos los workspaces.
 
 ## Estado actual
 
