@@ -33,6 +33,8 @@ Levantar el backend:
 npm run dev -w backend
 ```
 
+Ese comando recompila primero `packages/core`, así el backend no depende de un `dist` generado a mano.
+
 Si prefieres trabajar dentro de cada carpeta, también puedes ejecutar los mismos scripts desde `apps/frontend` y `apps/backend`.
 
 ## Verificación
@@ -45,7 +47,7 @@ npm run lint
 npm test
 ```
 
-`npm run build` compila los paquetes que exponen script de build, `npm run lint` ejecuta el lint en los workspaces que lo tienen definido y `npm test` solo correrá suites en los paquetes que agreguen un script `test`.
+`npm run build` compila los paquetes que exponen script de build; en el backend, el core compartido se prepara antes de compilar. `npm run lint` ejecuta el lint en los workspaces que lo tienen definido y `npm test` solo correrá suites en los paquetes que agreguen un script `test`.
 
 ## Flujo recomendado
 
