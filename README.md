@@ -1,1 +1,61 @@
 # Equilibrio-app
+
+Monorepo para desarrollar la aplicación Equilibrio con tres paquetes:
+
+- `apps/frontend`: interfaz web en Next.js
+- `apps/backend`: servicio backend en TypeScript
+- `packages/core`: modelos y contratos compartidos
+
+## Requisitos
+
+- Node.js 20 o superior
+- npm 10 o superior
+
+## Instalación
+
+Desde la raíz del proyecto:
+
+```bash
+npm install
+```
+
+## Desarrollo
+
+Levantar el frontend:
+
+```bash
+npm run dev -w frontend
+```
+
+Levantar el backend:
+
+```bash
+npm run dev -w backend
+```
+
+Si prefieres trabajar dentro de cada carpeta, también puedes ejecutar los mismos scripts desde `apps/frontend` y `apps/backend`.
+
+## Verificación
+
+Comandos disponibles desde la raíz:
+
+```bash
+npm run build
+npm run lint
+npm test
+```
+
+`npm run build` compila los paquetes que exponen script de build, `npm run lint` ejecuta el lint en los workspaces que lo tienen definido y `npm test` solo correrá suites en los paquetes que agreguen un script `test`.
+
+## Flujo recomendado
+
+1. Instalar dependencias con `npm install`.
+2. Abrir dos terminales y ejecutar `npm run dev -w frontend` y `npm run dev -w backend`.
+3. Antes de compartir cambios, correr `npm run lint` y `npm run build`.
+4. Cuando agregues tests, ejecutar `npm test` para validar todos los workspaces.
+
+## Estado actual
+
+- El frontend arranca con la página base de Next.js y está listo para reemplazar la pantalla inicial.
+- El backend hoy solo inicializa un asset de ejemplo y sirve como punto de arranque para la lógica compartida.
+- El paquete `@equilibrio/core` concentra los modelos y repositorios reutilizables entre frontend y backend.
