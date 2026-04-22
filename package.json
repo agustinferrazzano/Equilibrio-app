@@ -1,0 +1,14 @@
+{
+  "name": "equilibrio-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "lint": "npm run -ws lint --if-present",
+    "test": "npm run -ws test --if-present"
+  }
+}
