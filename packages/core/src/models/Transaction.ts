@@ -6,6 +6,7 @@ export class Transaction {
     public userId: string,
     public assetId: string,
     public type: TransactionType,
+    public date: Date,
     public quantity: number,
     public price: number,
     public commission: number,

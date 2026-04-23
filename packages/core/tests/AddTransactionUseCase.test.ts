@@ -7,9 +7,11 @@ describe("AddTransactionUseCase", () => {
     const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
 
     const transaction = await addTransactionUseCase.execute({
+      id: "transaction-1",
       userId: "user-1",
       assetId: "asset-1",
       type: "BUY",
+      date: new Date("2026-04-22T00:00:00.000Z"),
       quantity: 2,
       price: 100,
       commission: 5,
@@ -31,9 +33,11 @@ describe("AddTransactionUseCase", () => {
 
     await expect(
       addTransactionUseCase.execute({
+        id: "transaction-1",
         userId: "user-1",
         assetId: "asset-1",
         type: "BUY",
+        date: new Date("2026-04-22T00:00:00.000Z"),
         quantity: 0,
         price: 100,
         commission: 5,
