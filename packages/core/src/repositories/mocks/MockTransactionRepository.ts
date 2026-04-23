@@ -8,6 +8,10 @@ export class MockTransactionRepository implements ITransactionRepository {
     this.transactions.push(transaction);
   }
 
+  async findAll(): Promise<Transaction[]> {
+    return this.transactions;
+  }
+
   async findById(id: string): Promise<Transaction | null> {
     return this.transactions.find((transaction) => transaction.id === id) ?? null;
   }

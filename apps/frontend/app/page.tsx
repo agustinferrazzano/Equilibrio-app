@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Transaction } from "@equilibrio/core";
 import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
@@ -8,8 +8,26 @@ import TransactionList from "./components/TransactionList";
 export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/transactions");
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as Transaction[];
+        setTransactions(data);
+      } catch {
+        // Keep page usable even if backend is down.
+      }
+    };
+
+    fetchTransactions();
+  }, []);
+
   const handleTransactionAdded = (transaction: Transaction) => {
-    setTransactions([...transactions, transaction]);
+    setTransactions((previous) => [transaction, ...previous]);
   };
 
   return (
