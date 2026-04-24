@@ -1,60 +1,126 @@
 "use client";
 
-import { FormEvent, useState, useRef } from "react";
-import { Transaction, TransactionType } from "@equilibrio/core";
+import { FormEvent, useEffect, useState } from "react";
+import { TransactionType } from "@equilibrio/core";
+import { TransactionRecord } from "../types";
 
 interface TransactionFormProps {
-  onTransactionAdded: (transaction: Transaction) => void;
+  onTransactionAdded: (transaction: TransactionRecord) => void;
+  onTransactionUpdated: (transaction: TransactionRecord) => void;
+  editingTransaction: TransactionRecord | null;
+  onCancelEdit: () => void;
 }
 
-export default function TransactionForm({ onTransactionAdded }: TransactionFormProps) {
-  const formRef = useRef<HTMLFormElement>(null);
+interface FormValues {
+  id: string;
+  userId: string;
+  assetId: string;
+  type: TransactionType | "";
+  date: string;
+  quantity: string;
+  price: string;
+  commission: string;
+}
+
+const EMPTY_VALUES: FormValues = {
+  id: "",
+  userId: "",
+  assetId: "",
+  type: "",
+  date: "",
+  quantity: "",
+  price: "",
+  commission: "",
+};
+
+export default function TransactionForm({
+  onTransactionAdded,
+  onTransactionUpdated,
+  editingTransaction,
+  onCancelEdit,
+}: TransactionFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+
+  useEffect(() => {
+    if (!editingTransaction) {
+      setValues(EMPTY_VALUES);
+      return;
+    }
+
+    setValues({
+      id: editingTransaction.id,
+      userId: editingTransaction.userId,
+      assetId: editingTransaction.assetId,
+      type: editingTransaction.type,
+      date: new Date(editingTransaction.date).toISOString().slice(0, 10),
+      quantity: String(editingTransaction.quantity),
+      price: String(editingTransaction.price),
+      commission: String(editingTransaction.commission),
+    });
+  }, [editingTransaction]);
+
+  const isEditing = Boolean(editingTransaction);
+
+  const resetForm = () => {
+    setValues(EMPTY_VALUES);
+  };
+
+  const handleChange = (field: keyof FormValues, value: string) => {
+    setValues((previous) => ({ ...previous, [field]: value }));
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(false);
+    setSuccessMessage(null);
 
-    const formData = new FormData(e.currentTarget);
     const data = {
-      id: formData.get("id"),
-      userId: formData.get("userId"),
-      assetId: formData.get("assetId"),
-      type: formData.get("type") as TransactionType,
-      date: new Date(formData.get("date") as string).toISOString(),
-      quantity: parseFloat(formData.get("quantity") as string),
-      price: parseFloat(formData.get("price") as string),
-      commission: parseFloat(formData.get("commission") as string),
+      userId: values.userId,
+      assetId: values.assetId,
+      type: values.type as TransactionType,
+      date: new Date(values.date).toISOString(),
+      quantity: Number.parseFloat(values.quantity),
+      price: Number.parseFloat(values.price),
+      commission: Number.parseFloat(values.commission),
     };
 
     try {
-      const response = await fetch("http://localhost:3001/api/transactions", {
-        method: "POST",
+      const endpoint = isEditing
+        ? `http://localhost:3001/api/transactions/${values.id}`
+        : "http://localhost:3001/api/transactions";
+
+      const payload = isEditing ? data : { id: values.id, ...data };
+
+      const response = await fetch(endpoint, {
+        method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Error al agregar la transacción");
+        throw new Error(errorData.message || "No se pudo guardar la transaccion");
       }
 
-      const transaction = await response.json();
-      setSuccess(true);
-      
-      if (formRef.current) {
-        formRef.current.reset();
-      }
-      
-      onTransactionAdded(transaction);
+      const transaction = (await response.json()) as TransactionRecord;
 
-      setTimeout(() => setSuccess(false), 3000);
+      if (isEditing) {
+        onTransactionUpdated(transaction);
+        setSuccessMessage("Transaccion actualizada exitosamente.");
+      } else {
+        onTransactionAdded(transaction);
+        setSuccessMessage("Transaccion agregada exitosamente.");
+      }
+
+      resetForm();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -63,49 +129,65 @@ export default function TransactionForm({ onTransactionAdded }: TransactionFormP
   };
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 p-6 bg-white rounded-lg shadow">
-      <h2 className="text-2xl font-bold mb-4">Agregar Transacción</h2>
+    <form onSubmit={handleSubmit} className="surface-card space-y-4 rounded-xl p-5 md:p-6">
+      <h2 className="display-font mb-1 text-3xl text-slate-100">
+        {isEditing ? "Editar Transaccion" : "Agregar Transaccion"}
+      </h2>
+      <p className="text-sm text-slate-400">
+        {isEditing
+          ? "Ajusta los datos y guarda los cambios."
+          : "Registra una operacion nueva en tu portafolio."}
+      </p>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">ID</label>
+          <label className="ui-label block">ID</label>
           <input
             type="text"
             name="id"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.id}
+            onChange={(e) => handleChange("id", e.target.value)}
+            disabled={isEditing}
+            className="ui-input mt-1 disabled:cursor-not-allowed disabled:opacity-70"
             placeholder="tx-1"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">User ID</label>
+          <label className="ui-label block">User ID</label>
           <input
             type="text"
             name="userId"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.userId}
+            onChange={(e) => handleChange("userId", e.target.value)}
+            className="ui-input mt-1"
             placeholder="user-1"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Asset ID</label>
+          <label className="ui-label block">Asset ID</label>
           <input
             type="text"
             name="assetId"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.assetId}
+            onChange={(e) => handleChange("assetId", e.target.value)}
+            className="ui-input mt-1"
             placeholder="asset-1"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Tipo</label>
+          <label className="ui-label block">Tipo</label>
           <select
             name="type"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.type}
+            onChange={(e) => handleChange("type", e.target.value)}
+            className="ui-input mt-1"
           >
             <option value="">Selecciona un tipo</option>
             <option value="BUY">BUY</option>
@@ -114,74 +196,97 @@ export default function TransactionForm({ onTransactionAdded }: TransactionFormP
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Fecha</label>
+          <label className="ui-label block">Fecha</label>
           <input
             type="date"
             name="date"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.date}
+            onChange={(e) => handleChange("date", e.target.value)}
+            className="ui-input mt-1"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Cantidad</label>
+          <label className="ui-label block">Cantidad</label>
           <input
             type="number"
             name="quantity"
             step="0.01"
             min="0"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.quantity}
+            onChange={(e) => handleChange("quantity", e.target.value)}
+            className="ui-input mt-1"
             placeholder="100"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Precio</label>
+          <label className="ui-label block">Precio</label>
           <input
             type="number"
             name="price"
             step="0.01"
             min="0"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.price}
+            onChange={(e) => handleChange("price", e.target.value)}
+            className="ui-input mt-1"
             placeholder="50.00"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Comisión</label>
+          <label className="ui-label block">Comision</label>
           <input
             type="number"
             name="commission"
             step="0.01"
             min="0"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={values.commission}
+            onChange={(e) => handleChange("commission", e.target.value)}
+            className="ui-input mt-1"
             placeholder="0.00"
           />
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-700">{error}</p>
+        <div className="rounded-md border border-rose-300/25 bg-rose-700/20 p-4">
+          <p className="text-rose-200">{error}</p>
         </div>
       )}
 
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-green-700">¡Transacción agregada exitosamente!</p>
+      {successMessage && (
+        <div className="rounded-md border border-emerald-300/25 bg-emerald-700/20 p-4">
+          <p className="text-emerald-200">{successMessage}</p>
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? "Guardando..." : "Agregar Transacción"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary flex-1 py-2.5 px-4 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? "Guardando..." : isEditing ? "Guardar cambios" : "Agregar transaccion"}
+        </button>
+
+        {isEditing && (
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              onCancelEdit();
+            }}
+            className="btn-muted px-4 py-2"
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   );
 }

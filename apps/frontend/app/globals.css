@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #080b11;
+  --foreground: #e9edf5;
+  --muted: #9aa6bd;
+  --card: #111722;
+  --card-strong: #181f2e;
+  --border: #2b3548;
+  --accent: #c7a46a;
+  --accent-strong: #dfbd86;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1100px 700px at 0% 0%, #1c2b45 0%, transparent 60%),
+    radial-gradient(900px 600px at 100% 10%, #2a203a 0%, transparent 55%),
+    linear-gradient(180deg, #0a0f18 0%, #070a10 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-manrope), sans-serif;
+}
+
+.display-font {
+  font-family: var(--font-manrope), sans-serif;
+}
+
+.surface-card {
+  background: linear-gradient(180deg, rgb(18 24 36 / 92%) 0%, rgb(14 19 31 / 92%) 100%);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 48px rgb(2 6 16 / 45%);
+  backdrop-filter: blur(8px);
+}
+
+.surface-panel {
+  background: linear-gradient(180deg, rgb(18 25 38 / 86%) 0%, rgb(14 20 33 / 86%) 100%);
+  border: 1px solid #2d3850;
+}
+
+.ui-input {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid #34435d;
+  background: #0f1522;
+  color: #eaf0f8;
+  padding: 0.6rem 0.75rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ui-input::placeholder {
+  color: #70809d;
+}
+
+.ui-input:focus {
+  outline: none;
+  border-color: #6f86b1;
+  box-shadow: 0 0 0 3px rgb(111 134 177 / 20%);
+}
+
+.ui-label {
+  color: #b6c3d9;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.btn-primary {
+  background: linear-gradient(120deg, #9a7a46 0%, #c7a46a 100%);
+  color: #111316;
+  border-radius: 0.65rem;
+  font-weight: 700;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn-muted {
+  border-radius: 0.65rem;
+  border: 1px solid #3a4862;
+  color: #ced7e8;
+  background: #141b29;
+}
+
+.btn-muted:hover {
+  background: #1a2334;
 }
