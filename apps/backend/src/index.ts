@@ -1,14 +1,20 @@
 import cors from "cors";
 import express, { Request, Response } from "express";
-import {
-	AddTransactionUseCase,
-	MockTransactionRepository,
-	TransactionType,
-} from "@equilibrio/core";
+import fs from "node:fs";
+import path from "node:path";
+import Database from "better-sqlite3";
+import { AddTransactionUseCase, TransactionType } from "@equilibrio/core";
+import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
 
 const app = express();
 const port = 3001;
-const transactionRepository = new MockTransactionRepository();
+const dataDirectory = path.resolve(__dirname, "../data");
+const databasePath = path.join(dataDirectory, "equilibrio.db");
+
+fs.mkdirSync(dataDirectory, { recursive: true });
+
+const database = new Database(databasePath);
+const transactionRepository = new SqliteTransactionRepository(database);
 const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
 
 app.use(cors());
@@ -53,6 +59,38 @@ app.get("/api/transactions", async (req: Request, res: Response) => {
 	}
 });
 
+app.get("/api/transactions/:id", async (req: Request, res: Response) => {
+	try {
+		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+		const transaction = await transactionRepository.findById(id);
+
+		if (!transaction) {
+			return res.status(404).json({ message: "Transaccion no encontrada" });
+		}
+
+		return res.json(transaction);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
+app.delete("/api/transactions/:id", async (req: Request, res: Response) => {
+	try {
+		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+		const deleted = await transactionRepository.deleteById(id);
+
+		if (!deleted) {
+			return res.status(404).json({ message: "Transaccion no encontrada" });
+		}
+
+		return res.status(204).send();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
 app.post("/api/transactions", async (req: Request, res: Response) => {
 	try {
 		const {
@@ -79,9 +117,18 @@ app.post("/api/transactions", async (req: Request, res: Response) => {
 
 		return res.status(201).json(transaction);
 	} catch (error) {
+		if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+			return res.status(409).json({ message: "Ya existe una transaccion con ese id" });
+		}
+
 		const message = error instanceof Error ? error.message : "Error inesperado";
 		return res.status(400).json({ message });
 	}
+});
+
+process.on("SIGINT", () => {
+	database.close();
+	process.exit(0);
 });
 
 app.listen(port, () => {
