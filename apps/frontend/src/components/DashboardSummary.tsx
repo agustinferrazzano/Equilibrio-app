@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Cell,
   Legend,
@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 
-interface PortfolioSummaryItem {
+interface PortfolioAssetSummary {
   assetId: string;
   totalQuantity: number;
   averagePrice: number;
@@ -18,6 +18,13 @@ interface PortfolioSummaryItem {
   currentPrice: number;
   currentValue: number;
   yieldPercentage: number;
+}
+
+interface PortfolioSummaryResponse {
+  assets: PortfolioAssetSummary[];
+  totalPortfolioValueARS: number;
+  totalPortfolioValueUSD: number | null;
+  exchangeRateUsed: number | null;
 }
 
 const CHART_COLORS = [
@@ -44,7 +51,7 @@ const formatCurrency = (value: unknown): string => {
 };
 
 export default function DashboardSummary() {
-  const [items, setItems] = useState<PortfolioSummaryItem[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,8 +67,8 @@ export default function DashboardSummary() {
           throw new Error("No se pudo cargar el resumen del portfolio");
         }
 
-        const data = (await response.json()) as PortfolioSummaryItem[];
-        setItems(data);
+        const data = (await response.json()) as PortfolioSummaryResponse;
+        setSummary(data);
       } catch (fetchError) {
         const message = fetchError instanceof Error ? fetchError.message : "Error desconocido";
         setError(message);
@@ -73,23 +80,9 @@ export default function DashboardSummary() {
     fetchSummary();
   }, []);
 
-  const totalInvested = useMemo(
-    () => items.reduce((accumulator, item) => accumulator + item.totalInvested, 0),
-    [items],
-  );
-
-  const totalPortfolioValue = useMemo(
-    () => items.reduce((accumulator, item) => accumulator + item.currentValue, 0),
-    [items],
-  );
-
-  const totalYieldPercentage = useMemo(() => {
-    if (totalInvested <= 0) {
-      return 0;
-    }
-
-    return ((totalPortfolioValue - totalInvested) / totalInvested) * 100;
-  }, [totalInvested, totalPortfolioValue]);
+  const items = summary?.assets ?? [];
+  const totalInvested =
+    items.reduce((acc, item) => acc + item.totalInvested, 0) || 0;
 
   return (
     <section className="surface-card mb-4 rounded-xl p-4 md:p-5">
@@ -112,82 +105,90 @@ export default function DashboardSummary() {
         <p className="text-slate-400">No hay posiciones activas para mostrar.</p>
       )}
 
-      {!loading && !error && items.length > 0 && (
+      {!loading && !error && summary && items.length > 0 && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="surface-panel rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Portfolio Value</p>
-              <p className="mt-2 text-3xl font-bold text-cyan-200">{formatCurrency(totalPortfolioValue)}</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total en ARS</p>
+              <p className="mt-2 text-3xl font-bold text-cyan-200">
+                ${summary.totalPortfolioValueARS.toFixed(2)}
+              </p>
             </div>
             <div className="surface-panel rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Yield %</p>
-              <p
-                className={`mt-2 text-3xl font-bold ${
-                  totalYieldPercentage >= 0 ? "text-green-500" : "text-red-500"
-                }`}
-              >
-                {totalYieldPercentage.toFixed(2)}%
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total en USD</p>
+              <p className="mt-2 text-3xl font-bold text-emerald-300">
+                {summary.totalPortfolioValueUSD ? `$${summary.totalPortfolioValueUSD.toFixed(2)}` : "N/A"}
+              </p>
+              {summary.exchangeRateUsed && (
+                <p className="mt-2 text-xs text-slate-400">
+                  MEP: ${summary.exchangeRateUsed.toFixed(2)}
+                </p>
+              )}
+            </div>
+            <div className="surface-panel rounded-xl p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Invertido</p>
+              <p className="mt-2 text-3xl font-bold text-cyan-200">
+                ${totalInvested.toFixed(2)}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="surface-panel rounded-xl p-4 lg:col-span-2">
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={items}
-                    dataKey="currentValue"
-                    nameKey="assetId"
-                    innerRadius={60}
-                    outerRadius={105}
-                    paddingAngle={3}
-                  >
-                    {items.map((item, index) => (
-                      <Cell
-                        key={item.assetId}
-                        fill={CHART_COLORS[index % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => formatCurrency(value)}
-                    contentStyle={{
-                      backgroundColor: "#0f1522",
-                      border: "1px solid #34435d",
-                      color: "#eaf0f8",
-                    }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="surface-panel rounded-xl p-4 lg:col-span-2">
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={items}
+                      dataKey="currentValue"
+                      nameKey="assetId"
+                      innerRadius={60}
+                      outerRadius={105}
+                      paddingAngle={3}
+                    >
+                      {items.map((item, index) => (
+                        <Cell
+                          key={item.assetId}
+                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => formatCurrency(value)}
+                      contentStyle={{
+                        backgroundColor: "#0f1522",
+                        border: "1px solid #34435d",
+                        color: "#eaf0f8",
+                      }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
 
-          <div className="surface-panel rounded-xl p-4">
-            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Invested</p>
-            <p className="mt-2 text-3xl font-bold text-cyan-200">{formatCurrency(totalInvested)}</p>
-            <div className="mt-4 space-y-2">
-              {items.map((item) => (
-                <div key={item.assetId} className="rounded-md border border-slate-700/60 p-2">
-                  <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
-                  <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
-                  <p className="text-xs text-slate-400">Avg: ${item.averagePrice.toFixed(2)}</p>
-                  <p className="text-xs text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
-                  <p className="text-xs text-slate-400">Value: {formatCurrency(item.currentValue)}</p>
-                  <p
-                    className={`text-xs font-semibold ${
-                      item.yieldPercentage >= 0 ? "text-green-500" : "text-red-500"
-                    }`}
-                  >
-                    Yield: {item.yieldPercentage.toFixed(2)}%
-                  </p>
-                </div>
-              ))}
+            <div className="surface-panel rounded-xl p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Posiciones</p>
+              <div className="mt-4 space-y-2">
+                {items.map((item) => (
+                  <div key={item.assetId} className="rounded-md border border-slate-700/60 p-2">
+                    <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
+                    <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
+                    <p className="text-xs text-slate-400">Avg: ${item.averagePrice.toFixed(2)}</p>
+                    <p className="text-xs text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
+                    <p className="text-xs text-slate-400">Value: {formatCurrency(item.currentValue)}</p>
+                    <p
+                      className={`text-xs font-semibold ${
+                        item.yieldPercentage >= 0 ? "text-green-500" : "text-red-500"
+                      }`}
+                    >
+                      Yield: {item.yieldPercentage.toFixed(2)}%
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       )}
     </section>

@@ -1,7 +1,8 @@
 import { ITransactionRepository } from "../repositories/ITransactionRepository";
 import { IMarketDataService } from "../services/IMarketDataService";
+import { ICurrencyService } from "../services/ICurrencyService";
 
-export interface PortfolioSummaryItem {
+export interface PortfolioAssetSummary {
   assetId: string;
   totalQuantity: number;
   averagePrice: number;
@@ -9,6 +10,13 @@ export interface PortfolioSummaryItem {
   currentPrice: number;
   currentValue: number;
   yieldPercentage: number;
+}
+
+export interface PortfolioSummaryResponse {
+  assets: PortfolioAssetSummary[];
+  totalPortfolioValueARS: number;
+  totalPortfolioValueUSD: number | null;
+  exchangeRateUsed: number | null;
 }
 
 interface AssetAccumulator {
@@ -20,9 +28,10 @@ export class GetPortfolioSummaryUseCase {
   constructor(
     private readonly transactionRepository: ITransactionRepository,
     private readonly marketDataService: IMarketDataService,
+    private readonly currencyService: ICurrencyService,
   ) {}
 
-  async execute(userId: string): Promise<PortfolioSummaryItem[]> {
+  async execute(userId: string): Promise<PortfolioSummaryResponse> {
     const transactions = await this.transactionRepository.findByUserId(userId);
     const sortedTransactions = [...transactions].sort(
       (left, right) => left.date.getTime() - right.date.getTime(),
@@ -59,7 +68,7 @@ export class GetPortfolioSummaryUseCase {
       byAsset.set(transaction.assetId, current);
     }
 
-    const summaries = await Promise.all(
+    const assets = await Promise.all(
       Array.from(byAsset.entries()).map(async ([assetId, totals]) => {
         const averagePrice = totals.totalCost / totals.totalQuantity;
         const marketPrice = await this.marketDataService.getCurrentPrice(assetId);
@@ -81,6 +90,19 @@ export class GetPortfolioSummaryUseCase {
       }),
     );
 
-    return summaries;
+    const exchangeRate = await this.currencyService.getExchangeRate("USDARS_MEP");
+    const totalPortfolioValueARS = Number(
+      assets.reduce((sum, asset) => sum + asset.currentValue, 0).toFixed(2),
+    );
+    const totalPortfolioValueUSD = exchangeRate
+      ? Number((totalPortfolioValueARS / exchangeRate).toFixed(2))
+      : null;
+
+    return {
+      assets,
+      totalPortfolioValueARS,
+      totalPortfolioValueUSD,
+      exchangeRateUsed: exchangeRate,
+    };
   }
 }

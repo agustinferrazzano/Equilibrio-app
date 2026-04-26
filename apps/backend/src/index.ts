@@ -12,6 +12,7 @@ import {
 import { runMigrations } from "./database/migrations";
 import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
 import { YahooFinanceService } from "./services/YahooFinanceService";
+import { DolarApiService } from "./services/DolarApiService";
 
 const app = express();
 const port = 3001;
@@ -25,9 +26,11 @@ runMigrations(database);
 const transactionRepository = new SqliteTransactionRepository(database);
 const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
 const marketDataService = new YahooFinanceService();
+const currencyService = new DolarApiService();
 const getPortfolioSummaryUseCase = new GetPortfolioSummaryUseCase(
 	transactionRepository,
 	marketDataService,
+	currencyService,
 );
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
