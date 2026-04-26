@@ -13,6 +13,7 @@ type ToastState = { type: "success" | "error"; message: string } | null;
 export default function Home() {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<TransactionRecord | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
@@ -75,17 +76,25 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (editingTransaction) {
+      setIsFormOpen(true);
+    }
+  }, [editingTransaction]);
+
   const refreshCurrentPage = () => {
     setReloadToken((previous) => previous + 1);
   };
 
   const handleTransactionAdded = (_transaction: TransactionRecord) => {
     setPage(1);
+    setIsFormOpen(false);
     refreshCurrentPage();
   };
 
   const handleTransactionUpdated = (_transaction: TransactionRecord) => {
     setEditingTransaction(null);
+    setIsFormOpen(false);
     refreshCurrentPage();
   };
 
@@ -132,7 +141,7 @@ export default function Home() {
       <div className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-sky-500/15 blur-3xl" />
       <div className="pointer-events-none absolute top-16 -right-16 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
 
-      <div className="relative mx-auto max-w-7xl">
+      <div className="relative mx-auto w-full max-w-[96rem]">
         <header className="mb-8 text-center md:mb-10">
           <div className="mx-auto mb-3 flex w-fit items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.9)]" />
@@ -159,20 +168,29 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <TransactionForm
-              onTransactionAdded={handleTransactionAdded}
-              onTransactionUpdated={handleTransactionUpdated}
-              editingTransaction={editingTransaction}
-              onCancelEdit={() => setEditingTransaction(null)}
-            />
+        <div className="space-y-4">
+          <div className="surface-panel flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 md:p-5">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+                Gestion de transacciones
+              </h3>
+              <p className="mt-1 text-sm text-slate-400">Abre el formulario solo cuando lo necesites.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (isFormOpen && editingTransaction) {
+                  setEditingTransaction(null);
+                }
+                setIsFormOpen((previous) => !previous);
+              }}
+              className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+            >
+              {isFormOpen ? "Cerrar formulario" : "Agregar transaccion"}
+            </button>
           </div>
 
-          <div className="lg:col-span-2">
-            <DashboardSummary />
-
-            <div className="surface-panel mb-4 space-y-4 rounded-xl p-4 md:p-5">
+          <div className="surface-panel mb-4 space-y-4 rounded-xl p-4 md:p-5">
               <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">Filtros y orden</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input
@@ -243,44 +261,77 @@ export default function Home() {
                   Limpiar filtros
                 </button>
               </div>
-            </div>
+          </div>
 
-            <TransactionList
-              transactions={transactions}
-              onEdit={setEditingTransaction}
-              onRequestDelete={setPendingDeleteId}
-              deletingId={deletingId}
-            />
+          <TransactionList
+            transactions={transactions}
+            onEdit={setEditingTransaction}
+            onRequestDelete={setPendingDeleteId}
+            deletingId={deletingId}
+          />
 
-            <div className="surface-panel mt-4 flex items-center justify-between rounded-xl p-4">
-              <p className="text-sm text-slate-400">
-                Mostrando {transactions.length} de {total} resultados
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={page <= 1 || loadingList}
-                  onClick={() => setPage((previous) => Math.max(1, previous - 1))}
-                  className="btn-muted px-3 py-1 text-sm disabled:opacity-50"
-                >
-                  Anterior
-                </button>
-                <span className="text-sm text-slate-300">
-                  Pagina {page} de {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={page >= totalPages || loadingList}
-                  onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
-                  className="btn-muted px-3 py-1 text-sm disabled:opacity-50"
-                >
-                  Siguiente
-                </button>
-              </div>
+          <div className="surface-panel mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-4">
+            <p className="text-sm text-slate-400">
+              Mostrando {transactions.length} de {total} resultados
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loadingList}
+                onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+                className="btn-muted px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Anterior
+              </button>
+              <span className="text-sm text-slate-300">
+                Pagina {page} de {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages || loadingList}
+                onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+                className="btn-muted px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Siguiente
+              </button>
             </div>
           </div>
+
+          <DashboardSummary />
         </div>
       </div>
+
+      {isFormOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-700/70 bg-slate-900/95 p-4 shadow-2xl md:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+                {editingTransaction ? "Editar transaccion" : "Nueva transaccion"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTransaction(null);
+                  setIsFormOpen(false);
+                }}
+                className="rounded-md border border-slate-600 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-800"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <TransactionForm
+              onTransactionAdded={handleTransactionAdded}
+              onTransactionUpdated={handleTransactionUpdated}
+              editingTransaction={editingTransaction}
+              onCancelEdit={() => {
+                setEditingTransaction(null);
+                setIsFormOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {pendingDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">

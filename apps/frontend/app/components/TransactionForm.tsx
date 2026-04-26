@@ -139,7 +139,7 @@ export default function TransactionForm({
           : "Registra una operacion nueva en tu portafolio."}
       </p>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="ui-label block">ID</label>
           <input
