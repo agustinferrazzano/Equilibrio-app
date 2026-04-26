@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
+import DashboardSummary from "../src/components/DashboardSummary";
 import { PaginatedTransactionsResponse, TransactionRecord } from "./types";
 
 type SortBy = "date" | "price" | "quantity";
@@ -169,6 +170,8 @@ export default function Home() {
           </div>
 
           <div className="lg:col-span-2">
+            <DashboardSummary />
+
             <div className="surface-panel mb-4 space-y-4 rounded-xl p-4 md:p-5">
               <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">Filtros y orden</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

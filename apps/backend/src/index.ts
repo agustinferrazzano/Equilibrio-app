@@ -3,7 +3,12 @@ import express, { Request, Response } from "express";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { AddTransactionUseCase, Transaction, TransactionType } from "@equilibrio/core";
+import {
+	AddTransactionUseCase,
+	GetPortfolioSummaryUseCase,
+	Transaction,
+	TransactionType,
+} from "@equilibrio/core";
 import { runMigrations } from "./database/migrations";
 import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
 
@@ -18,6 +23,7 @@ const database = new Database(databasePath);
 runMigrations(database);
 const transactionRepository = new SqliteTransactionRepository(database);
 const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
+const getPortfolioSummaryUseCase = new GetPortfolioSummaryUseCase(transactionRepository);
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
 	if (typeof value !== "string") {
@@ -59,6 +65,7 @@ app.get("/", (_req: Request, res: Response) => {
 			"GET /health",
 			"GET /api/transactions",
 			"GET /api/transactions/:id",
+			"GET /api/portfolio/:userId",
 			"POST /api/transactions",
 			"PUT /api/transactions/:id",
 			"DELETE /api/transactions/:id",
@@ -150,6 +157,18 @@ app.get("/api/transactions/:id", async (req: Request, res: Response) => {
 		}
 
 		return res.json(transaction);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
+app.get("/api/portfolio/:userId", async (req: Request, res: Response) => {
+	try {
+		const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+		const summary = await getPortfolioSummaryUseCase.execute(userId);
+
+		return res.status(200).json(summary);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Error inesperado";
 		return res.status(400).json({ message });
