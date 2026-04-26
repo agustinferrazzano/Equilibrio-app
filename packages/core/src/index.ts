@@ -5,3 +5,4 @@ export * from "./useCases/GetPortfolioSummaryUseCase";
 export * from "./repositories/IAssetRepository";
 export * from "./repositories/ITransactionRepository";
 export * from "./repositories/mocks/MockTransactionRepository";
+export * from "./services/IMarketDataService";

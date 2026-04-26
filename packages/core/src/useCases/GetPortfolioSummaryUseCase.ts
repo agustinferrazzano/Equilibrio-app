@@ -1,10 +1,14 @@
 import { ITransactionRepository } from "../repositories/ITransactionRepository";
+import { IMarketDataService } from "../services/IMarketDataService";
 
 export interface PortfolioSummaryItem {
   assetId: string;
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;
+  currentPrice: number;
+  currentValue: number;
+  yieldPercentage: number;
 }
 
 interface AssetAccumulator {
@@ -13,7 +17,10 @@ interface AssetAccumulator {
 }
 
 export class GetPortfolioSummaryUseCase {
-  constructor(private readonly transactionRepository: ITransactionRepository) {}
+  constructor(
+    private readonly transactionRepository: ITransactionRepository,
+    private readonly marketDataService: IMarketDataService,
+  ) {}
 
   async execute(userId: string): Promise<PortfolioSummaryItem[]> {
     const transactions = await this.transactionRepository.findByUserId(userId);
@@ -52,15 +59,28 @@ export class GetPortfolioSummaryUseCase {
       byAsset.set(transaction.assetId, current);
     }
 
-    return Array.from(byAsset.entries()).map(([assetId, totals]) => {
-      const averagePrice = totals.totalCost / totals.totalQuantity;
+    const summaries = await Promise.all(
+      Array.from(byAsset.entries()).map(async ([assetId, totals]) => {
+        const averagePrice = totals.totalCost / totals.totalQuantity;
+        const marketPrice = await this.marketDataService.getCurrentPrice(assetId);
+        const currentPrice = marketPrice ?? averagePrice;
+        const currentValue = totals.totalQuantity * currentPrice;
+        const yieldPercentage = averagePrice > 0
+          ? ((currentPrice - averagePrice) / averagePrice) * 100
+          : 0;
 
-      return {
-        assetId,
-        totalQuantity: Number(totals.totalQuantity.toFixed(6)),
-        averagePrice: Number(averagePrice.toFixed(6)),
-        totalInvested: Number((averagePrice * totals.totalQuantity).toFixed(6)),
-      };
-    });
+        return {
+          assetId,
+          totalQuantity: Number(totals.totalQuantity.toFixed(6)),
+          averagePrice: Number(averagePrice.toFixed(6)),
+          totalInvested: Number((averagePrice * totals.totalQuantity).toFixed(6)),
+          currentPrice: Number(currentPrice.toFixed(6)),
+          currentValue: Number(currentValue.toFixed(6)),
+          yieldPercentage: Number(yieldPercentage.toFixed(6)),
+        };
+      }),
+    );
+
+    return summaries;
   }
 }

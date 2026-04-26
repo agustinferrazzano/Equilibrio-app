@@ -15,6 +15,9 @@ interface PortfolioSummaryItem {
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;
+  currentPrice: number;
+  currentValue: number;
+  yieldPercentage: number;
 }
 
 const CHART_COLORS = [
@@ -75,6 +78,19 @@ export default function DashboardSummary() {
     [items],
   );
 
+  const totalPortfolioValue = useMemo(
+    () => items.reduce((accumulator, item) => accumulator + item.currentValue, 0),
+    [items],
+  );
+
+  const totalYieldPercentage = useMemo(() => {
+    if (totalInvested <= 0) {
+      return 0;
+    }
+
+    return ((totalPortfolioValue - totalInvested) / totalInvested) * 100;
+  }, [totalInvested, totalPortfolioValue]);
+
   return (
     <section className="surface-card mb-4 rounded-xl p-4 md:p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -97,14 +113,32 @@ export default function DashboardSummary() {
       )}
 
       {!loading && !error && items.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="surface-panel rounded-xl p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Portfolio Value</p>
+              <p className="mt-2 text-3xl font-bold text-cyan-200">{formatCurrency(totalPortfolioValue)}</p>
+            </div>
+            <div className="surface-panel rounded-xl p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Yield %</p>
+              <p
+                className={`mt-2 text-3xl font-bold ${
+                  totalYieldPercentage >= 0 ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {totalYieldPercentage.toFixed(2)}%
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="surface-panel rounded-xl p-4 lg:col-span-2">
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={items}
-                    dataKey="totalInvested"
+                    dataKey="currentValue"
                     nameKey="assetId"
                     innerRadius={60}
                     outerRadius={105}
@@ -133,17 +167,27 @@ export default function DashboardSummary() {
 
           <div className="surface-panel rounded-xl p-4">
             <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Invested</p>
-            <p className="mt-2 text-3xl font-bold text-cyan-200">${totalInvested.toFixed(2)}</p>
+            <p className="mt-2 text-3xl font-bold text-cyan-200">{formatCurrency(totalInvested)}</p>
             <div className="mt-4 space-y-2">
               {items.map((item) => (
                 <div key={item.assetId} className="rounded-md border border-slate-700/60 p-2">
                   <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
                   <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
                   <p className="text-xs text-slate-400">Avg: ${item.averagePrice.toFixed(2)}</p>
+                  <p className="text-xs text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
+                  <p className="text-xs text-slate-400">Value: {formatCurrency(item.currentValue)}</p>
+                  <p
+                    className={`text-xs font-semibold ${
+                      item.yieldPercentage >= 0 ? "text-green-500" : "text-red-500"
+                    }`}
+                  >
+                    Yield: {item.yieldPercentage.toFixed(2)}%
+                  </p>
                 </div>
               ))}
             </div>
           </div>
+        </div>
         </div>
       )}
     </section>

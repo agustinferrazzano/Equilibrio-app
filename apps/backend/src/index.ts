@@ -11,6 +11,7 @@ import {
 } from "@equilibrio/core";
 import { runMigrations } from "./database/migrations";
 import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
+import { YahooFinanceService } from "./services/YahooFinanceService";
 
 const app = express();
 const port = 3001;
@@ -23,7 +24,11 @@ const database = new Database(databasePath);
 runMigrations(database);
 const transactionRepository = new SqliteTransactionRepository(database);
 const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
-const getPortfolioSummaryUseCase = new GetPortfolioSummaryUseCase(transactionRepository);
+const marketDataService = new YahooFinanceService();
+const getPortfolioSummaryUseCase = new GetPortfolioSummaryUseCase(
+	transactionRepository,
+	marketDataService,
+);
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
 	if (typeof value !== "string") {
