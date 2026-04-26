@@ -1,53 +1,29 @@
 # Equilibrio-app
 
-Monorepo para desarrollar la aplicación Equilibrio con tres paquetes:
+Monorepo para gestionar transacciones de inversiones con frontend en Next.js, backend en Express y logica compartida en TypeScript.
 
-- `apps/frontend`: interfaz web en Next.js
-- `apps/backend`: servicio backend en TypeScript
-- `packages/core`: modelos y contratos compartidos
+## Estructura
+
+- apps/frontend: interfaz web (Next.js 16, React 19, Tailwind 4, Recharts)
+- apps/backend: API REST (Express + TypeScript + SQLite)
+- packages/core: modelos, contratos de repositorios y casos de uso compartidos
 
 ## Requisitos
 
 - Node.js 20 o superior
 - npm 10 o superior
 
-## Instalación
+## Instalacion
 
-Desde la raíz del proyecto:
+Desde la raiz:
 
 ```bash
 npm install
 ```
 
-## Desarrollo
+## Scripts del monorepo
 
-Levantar el frontend:
-
-```bash
-npm run dev -w frontend
-```
-
-Levantar el backend:
-
-```bash
-npm run dev -w backend
-```
-
-Ese comando recompila primero `packages/core`, así el backend no depende de un `dist` generado a mano.
-
-Para desarrollo continuo de backend + librería compartida, abre una tercera terminal y deja el core en watch:
-
-```bash
-npm run dev -w @equilibrio/core
-```
-
-Con eso, cada cambio en `packages/core/src` vuelve a generar `dist` automáticamente.
-
-Si prefieres trabajar dentro de cada carpeta, también puedes ejecutar los mismos scripts desde `apps/frontend` y `apps/backend`.
-
-## Verificación
-
-Comandos disponibles desde la raíz:
+Desde la raiz:
 
 ```bash
 npm run build
@@ -55,18 +31,115 @@ npm run lint
 npm test
 ```
 
-`npm run build` compila los paquetes que exponen script de build; en el backend, el core compartido se prepara antes de compilar. `npm run lint` ejecuta el lint en los workspaces que lo tienen definido y `npm test` solo correrá suites en los paquetes que agreguen un script `test`.
+- build: ejecuta build en todos los workspaces con script definido
+- lint: ejecuta lint en workspaces que tengan script lint
+- test: ejecuta tests en workspaces que tengan script test (actualmente core)
 
-## Flujo recomendado
+## Desarrollo local
 
-1. Instalar dependencias con `npm install`.
-2. Abrir dos terminales y ejecutar `npm run dev -w frontend` y `npm run dev -w backend`.
-3. Si vas a tocar código compartido, abrir otra terminal con `npm run dev -w @equilibrio/core`.
-4. Antes de compartir cambios, correr `npm run lint` y `npm run build`.
-5. Cuando agregues tests, ejecutar `npm test` para validar todos los workspaces.
+Abrir dos terminales:
 
-## Estado actual
+```bash
+npm run dev -w backend
+npm run dev -w frontend
+```
 
-- El frontend arranca con la página base de Next.js y está listo para reemplazar la pantalla inicial.
-- El backend hoy solo inicializa un asset de ejemplo y sirve como punto de arranque para la lógica compartida.
-- El paquete `@equilibrio/core` concentra los modelos y repositorios reutilizables entre frontend y backend.
+Notas:
+
+- El backend corre en http://localhost:3001
+- El frontend corre en http://localhost:3000
+- El script dev del backend recompila primero @equilibrio/core para evitar desfasajes de tipos/artefactos
+
+Si vas a trabajar mucho en codigo compartido, puedes dejar core en watch en una tercera terminal:
+
+```bash
+npm run dev -w @equilibrio/core
+```
+
+## Persistencia y migraciones
+
+- Base de datos: SQLite (better-sqlite3)
+- Archivo local: apps/backend/data/equilibrio.db
+- Migraciones automaticas al iniciar backend
+- Tabla schema_migrations para control de versiones
+
+## API disponible
+
+Base URL: http://localhost:3001
+
+Rutas:
+
+- GET /
+- GET /health
+- GET /api/transactions
+- GET /api/transactions/:id
+- POST /api/transactions
+- PUT /api/transactions/:id
+- DELETE /api/transactions/:id
+- GET /api/portfolio/:userId
+
+### Query params en listado de transacciones
+
+GET /api/transactions acepta:
+
+- userId
+- assetId
+- page (default: 1)
+- pageSize (default: 10)
+- sortBy: date | price | quantity
+- sortOrder: asc | desc
+
+Respuesta paginada esperada:
+
+```json
+{
+	"data": [],
+	"total": 0,
+	"page": 1,
+	"pageSize": 10
+}
+```
+
+## Resumen de portfolio
+
+GET /api/portfolio/:userId devuelve posiciones activas por activo con:
+
+- assetId
+- totalQuantity
+- averagePrice
+- totalInvested
+
+El calculo usa un promedio ponderado de costo sobre transacciones BUY/SELL y excluye activos con cantidad final 0.
+
+## Frontend actual
+
+La pantalla principal incluye:
+
+- Formulario de alta/edicion de transacciones
+- Listado con filtros, orden y paginacion
+- Eliminacion con modal de confirmacion
+- Toasts de exito/error
+- Dashboard de portfolio con grafico de torta (Recharts)
+
+El dashboard consulta el endpoint de portfolio con un usuario demo fijo (user-page).
+
+## Tests
+
+- packages/core tiene configurado Jest + ts-jest
+- Ejecutar todos los tests desde raiz:
+
+```bash
+npm test
+```
+
+## Build de produccion
+
+```bash
+npm run build
+```
+
+Para ejecutar backend compilado:
+
+```bash
+npm run start -w backend
+```
