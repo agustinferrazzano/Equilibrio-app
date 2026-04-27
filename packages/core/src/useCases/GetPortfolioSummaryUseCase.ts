@@ -1,15 +1,19 @@
 import { ITransactionRepository } from "../repositories/ITransactionRepository";
 import { IMarketDataService } from "../services/IMarketDataService";
 import { ICurrencyService } from "../services/ICurrencyService";
+import { ASSET_DICTIONARY } from "../services/AssetDictionary";
 
 export interface PortfolioAssetSummary {
   assetId: string;
+  type: "CEDEAR" | "ACCION_LOCAL";
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;
   currentPrice: number;
   currentValue: number;
   yieldPercentage: number;
+  theoreticalPriceARS?: number;
+  spreadPercentage?: number;
 }
 
 export interface PortfolioSummaryResponse {
@@ -68,8 +72,12 @@ export class GetPortfolioSummaryUseCase {
       byAsset.set(transaction.assetId, current);
     }
 
+    const exchangeRate = await this.currencyService.getExchangeRate("USDARS_MEP");
+
     const assets = await Promise.all(
       Array.from(byAsset.entries()).map(async ([assetId, totals]) => {
+        const definition = ASSET_DICTIONARY[assetId];
+        const type = definition?.type ?? "ACCION_LOCAL";
         const averagePrice = totals.totalCost / totals.totalQuantity;
         const marketPrice = await this.marketDataService.getCurrentPrice(assetId);
         const currentPrice = marketPrice ?? averagePrice;
@@ -78,19 +86,42 @@ export class GetPortfolioSummaryUseCase {
           ? ((currentPrice - averagePrice) / averagePrice) * 100
           : 0;
 
+        let theoreticalPriceARS: number | undefined;
+        let spreadPercentage: number | undefined;
+
+        if (definition?.type === "CEDEAR" && exchangeRate && definition.ratio > 0) {
+          const underlyingPriceUSD = await this.marketDataService.getCurrentPrice(
+            definition.underlyingTicker,
+          );
+
+          if (typeof underlyingPriceUSD === "number" && Number.isFinite(underlyingPriceUSD)) {
+            theoreticalPriceARS = (underlyingPriceUSD * exchangeRate) / definition.ratio;
+
+            if (theoreticalPriceARS > 0) {
+              spreadPercentage = ((currentPrice / theoreticalPriceARS) - 1) * 100;
+            }
+          }
+        }
+
         return {
           assetId,
+          type,
           totalQuantity: Number(totals.totalQuantity.toFixed(6)),
           averagePrice: Number(averagePrice.toFixed(6)),
           totalInvested: Number((averagePrice * totals.totalQuantity).toFixed(6)),
           currentPrice: Number(currentPrice.toFixed(6)),
           currentValue: Number(currentValue.toFixed(6)),
           yieldPercentage: Number(yieldPercentage.toFixed(6)),
+          theoreticalPriceARS: theoreticalPriceARS !== undefined
+            ? Number(theoreticalPriceARS.toFixed(6))
+            : undefined,
+          spreadPercentage: spreadPercentage !== undefined
+            ? Number(spreadPercentage.toFixed(6))
+            : undefined,
         };
       }),
     );
 
-    const exchangeRate = await this.currencyService.getExchangeRate("USDARS_MEP");
     const totalPortfolioValueARS = Number(
       assets.reduce((sum, asset) => sum + asset.currentValue, 0).toFixed(2),
     );

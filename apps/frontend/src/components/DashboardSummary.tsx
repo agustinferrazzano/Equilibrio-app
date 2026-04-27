@@ -12,12 +12,15 @@ import {
 
 interface PortfolioAssetSummary {
   assetId: string;
+  type: "CEDEAR" | "ACCION_LOCAL";
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;
   currentPrice: number;
   currentValue: number;
   yieldPercentage: number;
+  theoreticalPriceARS?: number;
+  spreadPercentage?: number;
 }
 
 interface PortfolioSummaryResponse {
@@ -172,7 +175,20 @@ export default function DashboardSummary() {
               <div className="mt-4 space-y-2">
                 {items.map((item) => (
                   <div key={item.assetId} className="rounded-md border border-slate-700/60 p-2">
-                    <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          item.type === "CEDEAR"
+                            ? "bg-sky-500/20 text-sky-300"
+                            : "bg-slate-500/20 text-slate-300"
+                        }`}
+                      >
+                        {item.type === "CEDEAR" || item.theoreticalPriceARS !== undefined
+                          ? "CEDEAR"
+                          : "Local"}
+                      </span>
+                    </div>
                     <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
                     <p className="text-xs text-slate-400">Avg: ${item.averagePrice.toFixed(2)}</p>
                     <p className="text-xs text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
@@ -184,6 +200,26 @@ export default function DashboardSummary() {
                     >
                       Yield: {item.yieldPercentage.toFixed(2)}%
                     </p>
+                    {(item.type === "CEDEAR" || item.theoreticalPriceARS !== undefined) && (
+                      <>
+                        <p className="text-xs text-slate-400">
+                          Theoretical Price: {formatCurrency(item.theoreticalPriceARS)}
+                        </p>
+                        {item.spreadPercentage !== undefined && (
+                          <p
+                            className={`text-xs font-semibold ${
+                              item.spreadPercentage > 2
+                                ? "text-red-500"
+                                : item.spreadPercentage < -2
+                                  ? "text-green-500"
+                                  : "text-slate-300"
+                            }`}
+                          >
+                            Spread: {item.spreadPercentage.toFixed(2)}%
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
