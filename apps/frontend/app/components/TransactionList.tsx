@@ -26,16 +26,17 @@ export default function TransactionList({
           <table className="w-full table-fixed text-sm text-slate-200">
             <thead className="bg-slate-900/70">
               <tr>
-                <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">ID</th>
-                <th className="w-[11%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Usuario</th>
+                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">ID</th>
+                <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Usuario</th>
                 <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Activo</th>
-                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Tipo</th>
-                <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Cantidad</th>
-                <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Precio</th>
-                <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Comision</th>
-                <th className="w-[11%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Total</th>
-                <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Fecha</th>
-                <th className="w-[13%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Acciones</th>
+                <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Tipo accion</th>
+                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Operacion</th>
+                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Cantidad</th>
+                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Precio</th>
+                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Comision</th>
+                <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Total</th>
+                <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Fecha</th>
+                <th className="w-[14%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -44,6 +45,17 @@ export default function TransactionList({
                   <td className="truncate px-3 py-2 text-slate-100" title={transaction.id}>{transaction.id}</td>
                   <td className="truncate px-3 py-2 text-slate-100" title={transaction.userId}>{transaction.userId}</td>
                   <td className="truncate px-3 py-2 text-slate-100" title={transaction.assetId}>{transaction.assetId}</td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        transaction.assetType === "CEDEAR"
+                          ? "bg-sky-500/20 text-sky-300"
+                          : "bg-slate-500/25 text-slate-200"
+                      }`}
+                    >
+                      {transaction.assetType === "CEDEAR" ? "CEDEAR" : "ACCION LOCAL"}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${

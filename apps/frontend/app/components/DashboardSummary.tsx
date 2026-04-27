@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Cell,
   Legend,
@@ -9,25 +9,32 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import type { TransactionRecord } from "../types";
 
-interface PortfolioAssetSummary {
+type AssetType = "CEDEAR" | "ACCION_LOCAL";
+
+interface AssetSummary {
   assetId: string;
-  type: "CEDEAR" | "ACCION_LOCAL";
+  assetType: AssetType;
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;
   currentPrice: number;
   currentValue: number;
   yieldPercentage: number;
-  theoreticalPriceARS?: number;
-  spreadPercentage?: number;
 }
 
-interface PortfolioSummaryResponse {
-  assets: PortfolioAssetSummary[];
+interface DashboardSummaryResponse {
+  assets: AssetSummary[];
   totalPortfolioValueARS: number;
   totalPortfolioValueUSD: number | null;
   exchangeRateUsed: number | null;
+}
+
+interface DashboardSummaryProps {
+  refreshToken: number;
+  filterUserId: string;
+  filterAssetId: string;
 }
 
 const CHART_COLORS = [
@@ -41,8 +48,6 @@ const CHART_COLORS = [
   "#f472b6",
 ];
 
-const DEMO_USER_ID = "user-page";
-
 const formatCurrency = (value: unknown): string => {
   const numericValue = typeof value === "number" ? value : Number(value);
 
@@ -53,10 +58,102 @@ const formatCurrency = (value: unknown): string => {
   return `$${numericValue.toFixed(2)}`;
 };
 
-export default function DashboardSummary() {
-  const [summary, setSummary] = useState<PortfolioSummaryResponse | null>(null);
+const normalizeFilter = (value: string): string | undefined => {
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const buildSummary = (
+  transactions: TransactionRecord[],
+  exchangeRateUsed: number | null,
+): DashboardSummaryResponse => {
+  type Accumulator = {
+    assetType: AssetType;
+    totalQuantity: number;
+    totalCost: number;
+  };
+
+  const byAsset = new Map<string, Accumulator>();
+
+  const sortedTransactions = [...transactions].sort(
+    (left, right) => new Date(left.date).getTime() - new Date(right.date).getTime(),
+  );
+
+  for (const transaction of sortedTransactions) {
+    const current = byAsset.get(transaction.assetId) ?? {
+      assetType: transaction.assetType,
+      totalQuantity: 0,
+      totalCost: 0,
+    };
+
+    current.assetType = transaction.assetType;
+
+    if (transaction.type === "BUY") {
+      current.totalQuantity += transaction.quantity;
+      current.totalCost += transaction.quantity * transaction.price + transaction.commission;
+    } else {
+      if (current.totalQuantity <= 0) {
+        continue;
+      }
+
+      const quantityToSell = Math.min(transaction.quantity, current.totalQuantity);
+      const averagePrice = current.totalCost / current.totalQuantity;
+
+      current.totalQuantity -= quantityToSell;
+      current.totalCost -= averagePrice * quantityToSell;
+    }
+
+    if (current.totalQuantity <= 0) {
+      byAsset.delete(transaction.assetId);
+      continue;
+    }
+
+    byAsset.set(transaction.assetId, current);
+  }
+
+  const assets = Array.from(byAsset.entries()).map(([assetId, totals]) => {
+    const averagePrice = totals.totalCost / totals.totalQuantity;
+    const currentValue = totals.totalCost;
+
+    return {
+      assetId,
+      assetType: totals.assetType,
+      totalQuantity: Number(totals.totalQuantity.toFixed(6)),
+      averagePrice: Number(averagePrice.toFixed(6)),
+      totalInvested: Number(totals.totalCost.toFixed(6)),
+      currentPrice: Number(averagePrice.toFixed(6)),
+      currentValue: Number(currentValue.toFixed(6)),
+      yieldPercentage: 0,
+    };
+  });
+
+  const totalPortfolioValueARS = Number(
+    assets.reduce((sum, asset) => sum + asset.currentValue, 0).toFixed(2),
+  );
+  const totalPortfolioValueUSD =
+    exchangeRateUsed && exchangeRateUsed > 0
+      ? Number((totalPortfolioValueARS / exchangeRateUsed).toFixed(2))
+      : null;
+
+  return {
+    assets,
+    totalPortfolioValueARS,
+    totalPortfolioValueUSD,
+    exchangeRateUsed,
+  };
+};
+
+export default function DashboardSummary({
+  refreshToken,
+  filterUserId,
+  filterAssetId,
+}: DashboardSummaryProps) {
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const normalizedUserId = useMemo(() => normalizeFilter(filterUserId), [filterUserId]);
+  const normalizedAssetId = useMemo(() => normalizeFilter(filterAssetId), [filterAssetId]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -64,36 +161,70 @@ export default function DashboardSummary() {
       setError(null);
 
       try {
-        const response = await fetch(`http://localhost:3001/api/portfolio/${DEMO_USER_ID}`);
+        const params = new URLSearchParams({
+          page: "1",
+          pageSize: "1000",
+          sortBy: "date",
+          sortOrder: "desc",
+        });
 
-        if (!response.ok) {
+        if (normalizedUserId) {
+          params.set("userId", normalizedUserId);
+        }
+
+        if (normalizedAssetId) {
+          params.set("assetId", normalizedAssetId);
+        }
+
+        const [transactionsResponse, exchangeRateResponse] = await Promise.all([
+          fetch(`http://localhost:3001/api/transactions?${params.toString()}`, {
+            cache: "no-store",
+          }),
+          fetch("http://localhost:3001/api/exchange-rate", { cache: "no-store" }),
+        ]);
+
+        if (!transactionsResponse.ok) {
           throw new Error("No se pudo cargar el resumen del portfolio");
         }
 
-        const data = (await response.json()) as PortfolioSummaryResponse;
-        setSummary(data);
+        const transactionPayload = (await transactionsResponse.json()) as {
+          data: TransactionRecord[];
+        };
+
+        let exchangeRateUsed: number | null = null;
+        if (exchangeRateResponse.ok) {
+          const exchangeRatePayload = (await exchangeRateResponse.json()) as {
+            exchangeRateUsed: number | null;
+          };
+          exchangeRateUsed = exchangeRatePayload.exchangeRateUsed;
+        }
+
+        setSummary(buildSummary(transactionPayload.data, exchangeRateUsed));
       } catch (fetchError) {
         const message = fetchError instanceof Error ? fetchError.message : "Error desconocido";
         setError(message);
+        setSummary(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchSummary();
-  }, []);
+  }, [refreshToken, normalizedUserId, normalizedAssetId]);
 
   const items = summary?.assets ?? [];
-  const totalInvested =
-    items.reduce((acc, item) => acc + item.totalInvested, 0) || 0;
+  const totalInvested = items.reduce((acc, item) => acc + item.totalInvested, 0) || 0;
+  const scopeLabel = [normalizedUserId ? `user=${normalizedUserId}` : null, normalizedAssetId ? `asset=${normalizedAssetId}` : null]
+    .filter(Boolean)
+    .join(" · ") || "all transactions";
 
   return (
     <section className="surface-card mb-4 rounded-xl p-4 md:p-5">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
           Dashboard Summary
         </h3>
-        <p className="text-xs text-slate-400">User: {DEMO_USER_ID}</p>
+        <p className="text-xs text-slate-400">Scope: {scopeLabel}</p>
       </div>
 
       {loading && <p className="text-slate-400">Cargando resumen...</p>}
@@ -114,24 +245,26 @@ export default function DashboardSummary() {
             <div className="surface-panel rounded-xl p-4">
               <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total en ARS</p>
               <p className="mt-2 text-3xl font-bold text-cyan-200">
-                ${summary.totalPortfolioValueARS.toFixed(2)}
+                {formatCurrency(summary.totalPortfolioValueARS)}
               </p>
             </div>
             <div className="surface-panel rounded-xl p-4">
               <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total en USD</p>
               <p className="mt-2 text-3xl font-bold text-emerald-300">
-                {summary.totalPortfolioValueUSD ? `$${summary.totalPortfolioValueUSD.toFixed(2)}` : "N/A"}
+                {summary.totalPortfolioValueUSD !== null
+                  ? formatCurrency(summary.totalPortfolioValueUSD)
+                  : "N/A"}
               </p>
               {summary.exchangeRateUsed && (
                 <p className="mt-2 text-xs text-slate-400">
-                  MEP: ${summary.exchangeRateUsed.toFixed(2)}
+                  MEP: {formatCurrency(summary.exchangeRateUsed)}
                 </p>
               )}
             </div>
             <div className="surface-panel rounded-xl p-4">
               <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Invertido</p>
               <p className="mt-2 text-3xl font-bold text-cyan-200">
-                ${totalInvested.toFixed(2)}
+                {formatCurrency(totalInvested)}
               </p>
             </div>
           </div>
@@ -179,18 +312,16 @@ export default function DashboardSummary() {
                       <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                          item.type === "CEDEAR"
+                          item.assetType === "CEDEAR"
                             ? "bg-sky-500/20 text-sky-300"
                             : "bg-slate-500/20 text-slate-300"
                         }`}
                       >
-                        {item.type === "CEDEAR" || item.theoreticalPriceARS !== undefined
-                          ? "CEDEAR"
-                          : "Local"}
+                        {item.assetType === "CEDEAR" ? "CEDEAR" : "Local"}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
-                    <p className="text-xs text-slate-400">Avg: ${item.averagePrice.toFixed(2)}</p>
+                    <p className="text-xs text-slate-400">Avg: {formatCurrency(item.averagePrice)}</p>
                     <p className="text-xs text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
                     <p className="text-xs text-slate-400">Value: {formatCurrency(item.currentValue)}</p>
                     <p
@@ -200,26 +331,6 @@ export default function DashboardSummary() {
                     >
                       Yield: {item.yieldPercentage.toFixed(2)}%
                     </p>
-                    {(item.type === "CEDEAR" || item.theoreticalPriceARS !== undefined) && (
-                      <>
-                        <p className="text-xs text-slate-400">
-                          Theoretical Price: {formatCurrency(item.theoreticalPriceARS)}
-                        </p>
-                        {item.spreadPercentage !== undefined && (
-                          <p
-                            className={`text-xs font-semibold ${
-                              item.spreadPercentage > 2
-                                ? "text-red-500"
-                                : item.spreadPercentage < -2
-                                  ? "text-green-500"
-                                  : "text-slate-300"
-                            }`}
-                          >
-                            Spread: {item.spreadPercentage.toFixed(2)}%
-                          </p>
-                        )}
-                      </>
-                    )}
                   </div>
                 ))}
               </div>

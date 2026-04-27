@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import {
 	AddTransactionUseCase,
 	GetPortfolioSummaryUseCase,
+	GetPortfolioEvolutionUseCase,
 	Transaction,
 	TransactionType,
 } from "@equilibrio/core";
@@ -13,6 +14,7 @@ import { runMigrations } from "./database/migrations";
 import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
 import { YahooFinanceService } from "./services/YahooFinanceService";
 import { DolarApiService } from "./services/DolarApiService";
+import { tickerValidationService } from "./services/TickerValidationService";
 
 const app = express();
 const port = 3001;
@@ -31,6 +33,10 @@ const getPortfolioSummaryUseCase = new GetPortfolioSummaryUseCase(
 	transactionRepository,
 	marketDataService,
 	currencyService,
+);
+const getPortfolioEvolutionUseCase = new GetPortfolioEvolutionUseCase(
+	transactionRepository,
+	marketDataService,
 );
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
@@ -62,6 +68,16 @@ const parseSortOrder = (value: unknown): "asc" | "desc" => {
 	return "desc";
 };
 
+type AssetType = "CEDEAR" | "ACCION_LOCAL";
+
+const parseAssetType = (value: unknown): AssetType => {
+	if (value === "CEDEAR" || value === "ACCION_LOCAL") {
+		return value;
+	}
+
+	return "ACCION_LOCAL";
+};
+
 app.use(cors());
 app.use(express.json());
 
@@ -87,6 +103,17 @@ app.get("/health", (_req: Request, res: Response) => {
 		service: "backend",
 		timestamp: new Date().toISOString(),
 	});
+});
+
+app.get("/api/exchange-rate", async (_req: Request, res: Response) => {
+	try {
+		const exchangeRateUsed = await currencyService.getExchangeRate("USDARS_MEP");
+
+		return res.json({ exchangeRateUsed });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
 });
 
 app.get("/api/transactions", async (req: Request, res: Response) => {
@@ -120,6 +147,7 @@ app.put("/api/transactions/:id", async (req: Request, res: Response) => {
 		const {
 			userId,
 			assetId,
+			assetType,
 			type,
 			date,
 			quantity,
@@ -140,6 +168,7 @@ app.put("/api/transactions/:id", async (req: Request, res: Response) => {
 			id,
 			userId,
 			assetId,
+			parseAssetType(assetType),
 			type as TransactionType,
 			new Date(date),
 			quantity,
@@ -183,6 +212,18 @@ app.get("/api/portfolio/:userId", async (req: Request, res: Response) => {
 	}
 });
 
+app.get("/api/portfolio/:userId/evolution", async (req: Request, res: Response) => {
+	try {
+		const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+		const evolution = await getPortfolioEvolutionUseCase.execute(userId);
+
+		return res.status(200).json(evolution);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
 app.delete("/api/transactions/:id", async (req: Request, res: Response) => {
 	try {
 		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -199,12 +240,39 @@ app.delete("/api/transactions/:id", async (req: Request, res: Response) => {
 	}
 });
 
+app.get("/api/tickers/suggested", (req: Request, res: Response) => {
+	try {
+		const tickers = tickerValidationService.getSuggestedTickers();
+		return res.json(tickers);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
+app.post("/api/tickers/validate", async (req: Request, res: Response) => {
+	try {
+		const { ticker } = req.body;
+
+		if (!ticker || typeof ticker !== "string") {
+			return res.status(400).json({ message: "Ticker requerido" });
+		}
+
+		const isValid = await tickerValidationService.validateTicker(ticker);
+		return res.json({ ticker: ticker.toUpperCase(), isValid });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
 app.post("/api/transactions", async (req: Request, res: Response) => {
 	try {
 		const {
 			id,
 			userId,
 			assetId,
+			assetType,
 			type,
 			date,
 			quantity,
@@ -212,10 +280,19 @@ app.post("/api/transactions", async (req: Request, res: Response) => {
 			commission,
 		} = req.body;
 
+		// Validar que el ticker existe
+		const isValidTicker = await tickerValidationService.validateTicker(assetId);
+		if (!isValidTicker) {
+			return res.status(400).json({
+				message: `El ticker "${assetId}" no es válido o no existe en Yahoo Finance. Usa tickers reales como MELI, AAPL, MSFT, etc.`,
+			});
+		}
+
 		const transaction = await addTransactionUseCase.execute({
 			id,
 			userId,
 			assetId,
+			assetType: parseAssetType(assetType),
 			type: type as TransactionType,
 			date: new Date(date),
 			quantity,

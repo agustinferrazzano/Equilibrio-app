@@ -1,10 +1,11 @@
-import { Transaction, TransactionType } from "../models/Transaction";
+import { AssetType, Transaction, TransactionType } from "../models/Transaction";
 import { ITransactionRepository } from "../repositories/ITransactionRepository";
 
 export interface AddTransactionInput {
   id: string;
   userId: string;
   assetId: string;
+  assetType: AssetType;
   type: TransactionType;
   date: Date;
   quantity: number;
@@ -24,6 +25,7 @@ export class AddTransactionUseCase {
       input.id,
       input.userId,
       input.assetId,
+      input.assetType,
       input.type,
       input.date,
       input.quantity,

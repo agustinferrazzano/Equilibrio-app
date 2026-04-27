@@ -7,10 +7,13 @@ import {
   TransactionType,
 } from "@equilibrio/core";
 
+type AssetType = "CEDEAR" | "ACCION_LOCAL";
+
 interface TransactionRow {
   id: string;
   userId: string;
   assetId: string;
+  assetType: AssetType;
   type: TransactionType;
   date: string;
   quantity: number;
@@ -25,14 +28,15 @@ export class SqliteTransactionRepository implements ITransactionRepository {
     this.db
       .prepare(
         `
-          INSERT INTO transactions (id, userId, assetId, type, date, quantity, price, commission)
-          VALUES (@id, @userId, @assetId, @type, @date, @quantity, @price, @commission)
+          INSERT INTO transactions (id, userId, assetId, assetType, type, date, quantity, price, commission)
+          VALUES (@id, @userId, @assetId, @assetType, @type, @date, @quantity, @price, @commission)
         `,
       )
       .run({
         id: transaction.id,
         userId: transaction.userId,
         assetId: transaction.assetId,
+        assetType: transaction.assetType,
         type: transaction.type,
         date: transaction.date.toISOString(),
         quantity: transaction.quantity,
@@ -48,6 +52,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
           UPDATE transactions
           SET userId = @userId,
               assetId = @assetId,
+              assetType = @assetType,
               type = @type,
               date = @date,
               quantity = @quantity,
@@ -60,6 +65,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
         id,
         userId: transaction.userId,
         assetId: transaction.assetId,
+        assetType: transaction.assetType,
         type: transaction.type,
         date: transaction.date.toISOString(),
         quantity: transaction.quantity,
@@ -73,7 +79,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
   async findAll(): Promise<Transaction[]> {
     const rows = this.db
       .prepare(
-        "SELECT id, userId, assetId, type, date, quantity, price, commission FROM transactions ORDER BY date DESC",
+        "SELECT id, userId, assetId, assetType, type, date, quantity, price, commission FROM transactions ORDER BY date DESC",
       )
       .all() as TransactionRow[];
 
@@ -126,7 +132,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
     const rows = this.db
       .prepare(
         `
-          SELECT id, userId, assetId, type, date, quantity, price, commission
+          SELECT id, userId, assetId, assetType, type, date, quantity, price, commission
           FROM transactions
           ${whereSql}
           ORDER BY ${safeSortBy} ${safeSortOrder}
@@ -146,7 +152,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
   async findById(id: string): Promise<Transaction | null> {
     const row = this.db
       .prepare(
-        "SELECT id, userId, assetId, type, date, quantity, price, commission FROM transactions WHERE id = ?",
+        "SELECT id, userId, assetId, assetType, type, date, quantity, price, commission FROM transactions WHERE id = ?",
       )
       .get(id) as TransactionRow | undefined;
 
@@ -164,7 +170,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
   async findByUserId(userId: string): Promise<Transaction[]> {
     const rows = this.db
       .prepare(
-        "SELECT id, userId, assetId, type, date, quantity, price, commission FROM transactions WHERE userId = ? ORDER BY date DESC",
+        "SELECT id, userId, assetId, assetType, type, date, quantity, price, commission FROM transactions WHERE userId = ? ORDER BY date DESC",
       )
       .all(userId) as TransactionRow[];
 
@@ -177,7 +183,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
   ): Promise<Transaction[]> {
     const rows = this.db
       .prepare(
-        "SELECT id, userId, assetId, type, date, quantity, price, commission FROM transactions WHERE userId = ? AND assetId = ? ORDER BY date DESC",
+        "SELECT id, userId, assetId, assetType, type, date, quantity, price, commission FROM transactions WHERE userId = ? AND assetId = ? ORDER BY date DESC",
       )
       .all(userId, assetId) as TransactionRow[];
 
@@ -189,6 +195,7 @@ export class SqliteTransactionRepository implements ITransactionRepository {
       row.id,
       row.userId,
       row.assetId,
+      row.assetType,
       row.type,
       new Date(row.date),
       row.quantity,

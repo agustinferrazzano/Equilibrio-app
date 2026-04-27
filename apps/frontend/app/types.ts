@@ -1,9 +1,10 @@
-import { TransactionType } from "@equilibrio/core";
+import { AssetType, TransactionType } from "@equilibrio/core";
 
 export interface TransactionRecord {
   id: string;
   userId: string;
   assetId: string;
+  assetType: AssetType;
   type: TransactionType;
   date: string;
   quantity: number;

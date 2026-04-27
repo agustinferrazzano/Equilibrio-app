@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { TransactionType } from "@equilibrio/core";
+import { AssetType, TransactionType } from "@equilibrio/core";
 import { TransactionRecord } from "../types";
 
 interface TransactionFormProps {
@@ -15,6 +15,7 @@ interface FormValues {
   id: string;
   userId: string;
   assetId: string;
+  assetType: AssetType | "";
   type: TransactionType | "";
   date: string;
   quantity: string;
@@ -26,6 +27,7 @@ const EMPTY_VALUES: FormValues = {
   id: "",
   userId: "",
   assetId: "",
+  assetType: "",
   type: "",
   date: "",
   quantity: "",
@@ -43,10 +45,34 @@ export default function TransactionForm({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [availableTickers, setAvailableTickers] = useState<string[]>([]);
+  const [tickerFilter, setTickerFilter] = useState("");
+  const [loadingTickers, setLoadingTickers] = useState(true);
+  const [showTickerDropdown, setShowTickerDropdown] = useState(false);
+
+  // Cargar tickers disponibles al montar
+  useEffect(() => {
+    const fetchTickers = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/tickers/suggested");
+        if (response.ok) {
+          const tickers = (await response.json()) as string[];
+          setAvailableTickers(tickers);
+        }
+      } catch {
+        console.error("Error loading tickers");
+      } finally {
+        setLoadingTickers(false);
+      }
+    };
+
+    fetchTickers();
+  }, []);
 
   useEffect(() => {
     if (!editingTransaction) {
       setValues(EMPTY_VALUES);
+      setTickerFilter("");
       return;
     }
 
@@ -54,22 +80,35 @@ export default function TransactionForm({
       id: editingTransaction.id,
       userId: editingTransaction.userId,
       assetId: editingTransaction.assetId,
+      assetType: editingTransaction.assetType,
       type: editingTransaction.type,
       date: new Date(editingTransaction.date).toISOString().slice(0, 10),
       quantity: String(editingTransaction.quantity),
       price: String(editingTransaction.price),
       commission: String(editingTransaction.commission),
     });
+    setTickerFilter(editingTransaction.assetId);
   }, [editingTransaction]);
 
   const isEditing = Boolean(editingTransaction);
 
   const resetForm = () => {
     setValues(EMPTY_VALUES);
+    setTickerFilter("");
   };
 
   const handleChange = (field: keyof FormValues, value: string) => {
     setValues((previous) => ({ ...previous, [field]: value }));
+  };
+
+  const filteredTickers = availableTickers.filter((ticker) =>
+    ticker.toUpperCase().includes(tickerFilter.toUpperCase()),
+  );
+
+  const handleSelectTicker = (ticker: string) => {
+    handleChange("assetId", ticker);
+    setTickerFilter(ticker);
+    setShowTickerDropdown(false);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -78,9 +117,16 @@ export default function TransactionForm({
     setError(null);
     setSuccessMessage(null);
 
+    if (!values.assetId) {
+      setError("Debe seleccionar un ticker válido");
+      setLoading(false);
+      return;
+    }
+
     const data = {
       userId: values.userId,
-      assetId: values.assetId,
+      assetId: values.assetId.toUpperCase(),
+      assetType: values.assetType as AssetType,
       type: values.type as TransactionType,
       date: new Date(values.date).toISOString(),
       quantity: Number.parseFloat(values.quantity),
@@ -167,21 +213,69 @@ export default function TransactionForm({
           />
         </div>
 
-        <div>
-          <label className="ui-label block">Asset ID</label>
-          <input
-            type="text"
-            name="assetId"
-            required
-            value={values.assetId}
-            onChange={(e) => handleChange("assetId", e.target.value)}
-            className="ui-input mt-1"
-            placeholder="asset-1"
-          />
+        <div className="md:col-span-2">
+          <label className="ui-label block">Ticker (Acción o CEDEAR)</label>
+          <div className="relative mt-1">
+            <input
+              type="text"
+              name="tickerFilter"
+              required
+              value={tickerFilter}
+              onChange={(e) => setTickerFilter(e.target.value)}
+              onFocus={() => setShowTickerDropdown(true)}
+              placeholder="Busca: MELI, AAPL, MSFT, SAP..."
+              className="ui-input w-full"
+              disabled={loadingTickers}
+            />
+            {loadingTickers && (
+              <span className="absolute right-3 top-3 text-xs text-slate-400">
+                Cargando tickers...
+              </span>
+            )}
+            {showTickerDropdown && !loadingTickers && filteredTickers.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-md border border-slate-700 bg-slate-900 shadow-lg">
+                {filteredTickers.map((ticker) => (
+                  <button
+                    key={ticker}
+                    type="button"
+                    onClick={() => handleSelectTicker(ticker)}
+                    className="block w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700"
+                  >
+                    {ticker}
+                  </button>
+                ))}
+              </div>
+            )}
+            {showTickerDropdown && !loadingTickers && tickerFilter && filteredTickers.length === 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-slate-700 bg-slate-900 p-3 shadow-lg">
+                <p className="text-sm text-slate-400">
+                  No se encontraron tickers. Usa uno de la lista sugerida.
+                </p>
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Selecciona de tickers validados en Yahoo Finance
+          </p>
         </div>
 
         <div>
-          <label className="ui-label block">Tipo</label>
+          <label className="ui-label block">Tipo de accion</label>
+          <select
+            name="assetType"
+            required
+            value={values.assetType}
+            onChange={(e) => handleChange("assetType", e.target.value)}
+            className="ui-input mt-1"
+          >
+            <option value="">Selecciona tipo de accion</option>
+            <option value="CEDEAR">CEDEAR</option>
+            <option value="ACCION_LOCAL">ACCION LOCAL</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="ui-label block">Tipo de operacion</label>
           <select
             name="type"
             required
@@ -189,7 +283,7 @@ export default function TransactionForm({
             onChange={(e) => handleChange("type", e.target.value)}
             className="ui-input mt-1"
           >
-            <option value="">Selecciona un tipo</option>
+            <option value="">Selecciona tipo de operacion</option>
             <option value="BUY">BUY</option>
             <option value="SELL">SELL</option>
           </select>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import DashboardSummary from "./components/DashboardSummary";
+import PortfolioEvolutionChart from "./components/PortfolioEvolutionChart";
 import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
-import DashboardSummary from "../src/components/DashboardSummary";
 import { PaginatedTransactionsResponse, TransactionRecord } from "./types";
 
 type SortBy = "date" | "price" | "quantity";
@@ -297,7 +298,13 @@ export default function Home() {
             </div>
           </div>
 
-          <DashboardSummary />
+          <DashboardSummary
+            refreshToken={reloadToken}
+            filterUserId={filterUserId}
+            filterAssetId={filterAssetId}
+          />
+
+          <PortfolioEvolutionChart />
         </div>
       </div>
 

@@ -42,6 +42,15 @@ const migrations: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 3,
+    name: "add_asset_type_to_transactions",
+    up: (db) => {
+      db.prepare(
+        "ALTER TABLE transactions ADD COLUMN assetType TEXT NOT NULL DEFAULT 'ACCION_LOCAL'",
+      ).run();
+    },
+  },
 ];
 
 export function runMigrations(db: Database): number {
