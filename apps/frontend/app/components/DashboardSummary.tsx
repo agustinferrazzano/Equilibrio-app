@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { TransactionRecord } from "../types";
+import { generatePortfolioPDF } from "../utils/generatePdfReport";
 
 type AssetType = "CEDEAR" | "ACCION_LOCAL";
 
@@ -220,11 +221,21 @@ export default function DashboardSummary({
 
   return (
     <section className="surface-card mb-4 rounded-xl p-4 md:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
           Dashboard Summary
         </h3>
-        <p className="text-xs text-slate-400">Scope: {scopeLabel}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs text-slate-400">Scope: {scopeLabel}</p>
+          {!loading && !error && summary && items.length > 0 && (
+            <button
+              onClick={() => generatePortfolioPDF(summary)}
+              className="rounded-md bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-purple-700"
+            >
+              ↓ Descargar PDF
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p className="text-slate-400">Cargando resumen...</p>}

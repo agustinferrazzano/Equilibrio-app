@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { AssetType, TransactionType } from "@equilibrio/core";
+import { AssetType, TransactionType, ASSET_DICTIONARY } from "@equilibrio/core";
 import { TransactionRecord } from "../types";
 
 interface TransactionFormProps {
@@ -15,7 +15,6 @@ interface FormValues {
   id: string;
   userId: string;
   assetId: string;
-  assetType: AssetType | "";
   type: TransactionType | "";
   date: string;
   quantity: string;
@@ -27,12 +26,16 @@ const EMPTY_VALUES: FormValues = {
   id: "",
   userId: "",
   assetId: "",
-  assetType: "",
   type: "",
   date: "",
   quantity: "",
   price: "",
   commission: "",
+};
+
+const getAssetTypeFromTicker = (ticker: string): AssetType => {
+  const assetDef = ASSET_DICTIONARY[ticker.toUpperCase()];
+  return assetDef ? assetDef.type : "ACCION_LOCAL";
 };
 
 export default function TransactionForm({
@@ -80,7 +83,6 @@ export default function TransactionForm({
       id: editingTransaction.id,
       userId: editingTransaction.userId,
       assetId: editingTransaction.assetId,
-      assetType: editingTransaction.assetType,
       type: editingTransaction.type,
       date: new Date(editingTransaction.date).toISOString().slice(0, 10),
       quantity: String(editingTransaction.quantity),
@@ -123,10 +125,18 @@ export default function TransactionForm({
       return;
     }
 
+    if (!values.type) {
+      setError("Debe seleccionar el tipo de operación");
+      setLoading(false);
+      return;
+    }
+
+    const assetType = getAssetTypeFromTicker(values.assetId);
+
     const data = {
       userId: values.userId,
       assetId: values.assetId.toUpperCase(),
-      assetType: values.assetType as AssetType,
+      assetType,
       type: values.type as TransactionType,
       date: new Date(values.date).toISOString(),
       quantity: Number.parseFloat(values.quantity),
@@ -257,21 +267,6 @@ export default function TransactionForm({
           <p className="mt-1 text-xs text-slate-500">
             Selecciona de tickers validados en Yahoo Finance
           </p>
-        </div>
-
-        <div>
-          <label className="ui-label block">Tipo de accion</label>
-          <select
-            name="assetType"
-            required
-            value={values.assetType}
-            onChange={(e) => handleChange("assetType", e.target.value)}
-            className="ui-input mt-1"
-          >
-            <option value="">Selecciona tipo de accion</option>
-            <option value="CEDEAR">CEDEAR</option>
-            <option value="ACCION_LOCAL">ACCION LOCAL</option>
-          </select>
         </div>
 
         <div>
