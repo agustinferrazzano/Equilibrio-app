@@ -2,19 +2,24 @@ import cors from "cors";
 import express, { Request, Response } from "express";
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import {
 	AddTransactionUseCase,
 	GetPortfolioSummaryUseCase,
 	GetPortfolioEvolutionUseCase,
+	CheckPriceAlertsUseCase,
 	Transaction,
 	TransactionType,
+	PriceAlert,
 } from "@equilibrio/core";
 import { runMigrations } from "./database/migrations";
 import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
+import { SqlitePriceAlertRepository } from "./repositories/SqlitePriceAlertRepository";
 import { YahooFinanceService } from "./services/YahooFinanceService";
 import { DolarApiService } from "./services/DolarApiService";
 import { tickerValidationService } from "./services/TickerValidationService";
+import { startPriceAlertsCronJob } from "./jobs/priceAlertsJob";
 
 const app = express();
 const port = 3001;
@@ -26,6 +31,7 @@ fs.mkdirSync(dataDirectory, { recursive: true });
 const database = new Database(databasePath);
 runMigrations(database);
 const transactionRepository = new SqliteTransactionRepository(database);
+const priceAlertRepository = new SqlitePriceAlertRepository(database);
 const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
 const marketDataService = new YahooFinanceService();
 const currencyService = new DolarApiService();
@@ -38,6 +44,13 @@ const getPortfolioEvolutionUseCase = new GetPortfolioEvolutionUseCase(
 	transactionRepository,
 	marketDataService,
 );
+const checkPriceAlertsUseCase = new CheckPriceAlertsUseCase(
+	priceAlertRepository,
+	marketDataService,
+);
+
+// Iniciar cron job para verificar alertas de precio
+startPriceAlertsCronJob(checkPriceAlertsUseCase);
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
 	if (typeof value !== "string") {
@@ -306,6 +319,97 @@ app.post("/api/transactions", async (req: Request, res: Response) => {
 			return res.status(409).json({ message: "Ya existe una transaccion con ese id" });
 		}
 
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
+app.post("/api/alerts", async (req: Request, res: Response) => {
+	try {
+		const {
+			userId,
+			assetId,
+			targetPrice,
+			condition,
+		} = req.body;
+
+		if (!userId || !assetId || targetPrice === undefined || !condition) {
+			return res.status(400).json({ message: "userId, assetId, targetPrice y condition son requeridos" });
+		}
+
+		if (typeof targetPrice !== "number" || targetPrice <= 0) {
+			return res.status(400).json({ message: "targetPrice debe ser un número positivo" });
+		}
+
+		if (condition !== "GREATER_THAN" && condition !== "LESS_THAN") {
+			return res.status(400).json({ message: "condition debe ser 'GREATER_THAN' o 'LESS_THAN'" });
+		}
+
+		// Validar que el ticker existe
+		const isValidTicker = await tickerValidationService.validateTicker(assetId);
+		if (!isValidTicker) {
+			return res.status(400).json({
+				message: `El ticker \"${assetId}\" no es válido o no existe en Yahoo Finance.`,
+			});
+		}
+
+		const alert = new PriceAlert(
+			randomUUID(),
+			userId,
+			assetId.toUpperCase(),
+			targetPrice,
+			condition,
+			true,
+		);
+
+		await priceAlertRepository.save(alert);
+
+		return res.status(201).json({
+			id: alert.id,
+			userId: alert.userId,
+			assetId: alert.assetId,
+			targetPrice: alert.targetPrice,
+			condition: alert.condition,
+			isActive: alert.isActive,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
+app.get("/api/alerts/:userId", async (req: Request, res: Response) => {
+	try {
+		const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+
+		const alerts = await priceAlertRepository.findByUserId(userId);
+
+		return res.json(alerts.map((alert) => ({
+			id: alert.id,
+			userId: alert.userId,
+			assetId: alert.assetId,
+			targetPrice: alert.targetPrice,
+			condition: alert.condition,
+			isActive: alert.isActive,
+		})));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
+app.delete("/api/alerts/:id", async (req: Request, res: Response) => {
+	try {
+		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+		const deleted = await priceAlertRepository.deleteById(id);
+
+		if (!deleted) {
+			return res.status(404).json({ message: "Alerta no encontrada" });
+		}
+
+		return res.status(204).send();
+	} catch (error) {
 		const message = error instanceof Error ? error.message : "Error inesperado";
 		return res.status(400).json({ message });
 	}

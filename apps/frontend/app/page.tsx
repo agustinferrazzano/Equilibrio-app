@@ -5,6 +5,7 @@ import DashboardSummary from "./components/DashboardSummary";
 import PortfolioEvolutionChart from "./components/PortfolioEvolutionChart";
 import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
+import PriceAlertForm from "./components/PriceAlertForm";
 import { PaginatedTransactionsResponse, TransactionRecord } from "./types";
 
 type SortBy = "date" | "price" | "quantity";
@@ -15,6 +16,7 @@ export default function Home() {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<TransactionRecord | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isAlertFormOpen, setIsAlertFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
@@ -177,18 +179,27 @@ export default function Home() {
               </h3>
               <p className="mt-1 text-sm text-slate-400">Abre el formulario solo cuando lo necesites.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (isFormOpen && editingTransaction) {
-                  setEditingTransaction(null);
-                }
-                setIsFormOpen((previous) => !previous);
-              }}
-              className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-            >
-              {isFormOpen ? "Cerrar formulario" : "Agregar transaccion"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isFormOpen && editingTransaction) {
+                    setEditingTransaction(null);
+                  }
+                  setIsFormOpen((previous) => !previous);
+                }}
+                className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+              >
+                {isFormOpen ? "Cerrar formulario" : "Agregar transaccion"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAlertFormOpen((previous) => !previous)}
+                className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+              >
+                {isAlertFormOpen ? "Cerrar alerta" : "Configurar alerta"}
+              </button>
+            </div>
           </div>
 
           <div className="surface-panel mb-4 space-y-4 rounded-xl p-4 md:p-5">
@@ -334,6 +345,31 @@ export default function Home() {
               onCancelEdit={() => {
                 setEditingTransaction(null);
                 setIsFormOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {isAlertFormOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-700/70 bg-slate-900/95 p-4 shadow-2xl md:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+                Nueva alerta de precio
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAlertFormOpen(false)}
+                className="rounded-md border border-slate-600 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-800"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <PriceAlertForm
+              onAlertCreated={() => {
+                setIsAlertFormOpen(false);
               }}
             />
           </div>

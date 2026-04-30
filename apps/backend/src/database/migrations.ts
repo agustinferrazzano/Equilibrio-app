@@ -51,6 +51,35 @@ const migrations: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 4,
+    name: "create_price_alerts_table",
+    up: (db) => {
+      db.prepare(
+        `
+          CREATE TABLE IF NOT EXISTS price_alerts (
+            id TEXT PRIMARY KEY,
+            userId TEXT NOT NULL,
+            assetId TEXT NOT NULL,
+            targetPrice REAL NOT NULL,
+            condition TEXT NOT NULL,
+            isActive INTEGER NOT NULL DEFAULT 1,
+            createdAt TEXT NOT NULL,
+            triggeredAt TEXT
+          )
+        `,
+      ).run();
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_price_alerts_userId ON price_alerts(userId)",
+      ).run();
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_price_alerts_assetId ON price_alerts(assetId)",
+      ).run();
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_price_alerts_isActive ON price_alerts(isActive)",
+      ).run();
+    },
+  },
 ];
 
 export function runMigrations(db: Database): number {
