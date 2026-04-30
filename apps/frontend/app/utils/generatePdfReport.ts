@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 
 interface AssetSummary {
   assetId: string;
-  assetType: "CEDEAR" | "ACCION_LOCAL";
+  type: "CEDEAR" | "ACCION_LOCAL";
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;

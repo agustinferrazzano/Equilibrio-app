@@ -16,13 +16,15 @@ type AssetType = "CEDEAR" | "ACCION_LOCAL";
 
 interface AssetSummary {
   assetId: string;
-  assetType: AssetType;
+  type: AssetType;
   totalQuantity: number;
   averagePrice: number;
   totalInvested: number;
   currentPrice: number;
   currentValue: number;
   yieldPercentage: number;
+  theoreticalPriceARS?: number;
+  spreadPercentage?: number;
 }
 
 interface DashboardSummaryResponse {
@@ -69,7 +71,7 @@ const buildSummary = (
   exchangeRateUsed: number | null,
 ): DashboardSummaryResponse => {
   type Accumulator = {
-    assetType: AssetType;
+    type: AssetType;
     totalQuantity: number;
     totalCost: number;
   };
@@ -82,12 +84,12 @@ const buildSummary = (
 
   for (const transaction of sortedTransactions) {
     const current = byAsset.get(transaction.assetId) ?? {
-      assetType: transaction.assetType,
+      type: transaction.assetType,
       totalQuantity: 0,
       totalCost: 0,
     };
 
-    current.assetType = transaction.assetType;
+    current.type = transaction.assetType;
 
     if (transaction.type === "BUY") {
       current.totalQuantity += transaction.quantity;
@@ -114,11 +116,11 @@ const buildSummary = (
 
   const assets = Array.from(byAsset.entries()).map(([assetId, totals]) => {
     const averagePrice = totals.totalCost / totals.totalQuantity;
-    const currentValue = totals.totalCost;
+    const currentValue = totals.totalQuantity * averagePrice;
 
     return {
       assetId,
-      assetType: totals.assetType,
+      type: totals.type,
       totalQuantity: Number(totals.totalQuantity.toFixed(6)),
       averagePrice: Number(averagePrice.toFixed(6)),
       totalInvested: Number(totals.totalCost.toFixed(6)),
@@ -162,45 +164,70 @@ export default function DashboardSummary({
       setError(null);
 
       try {
-        const params = new URLSearchParams({
-          page: "1",
-          pageSize: "1000",
-          sortBy: "date",
-          sortOrder: "desc",
-        });
-
+        // Si hay filterUserId, usar el endpoint GET /api/portfolio/:userId que ya calcula
+        // precios actuales con Yahoo Finance y rendimiento correctamente
         if (normalizedUserId) {
-          params.set("userId", normalizedUserId);
-        }
+          const portfolioResponse = await fetch(
+            `http://localhost:3001/api/portfolio/${normalizedUserId}`,
+            { cache: "no-store" },
+          );
 
-        if (normalizedAssetId) {
-          params.set("assetId", normalizedAssetId);
-        }
+          if (!portfolioResponse.ok) {
+            throw new Error("No se pudo cargar el resumen del portfolio");
+          }
 
-        const [transactionsResponse, exchangeRateResponse] = await Promise.all([
-          fetch(`http://localhost:3001/api/transactions?${params.toString()}`, {
-            cache: "no-store",
-          }),
-          fetch("http://localhost:3001/api/exchange-rate", { cache: "no-store" }),
-        ]);
+          const portfolioData = (await portfolioResponse.json()) as DashboardSummaryResponse;
+          
+          // Filtrar por assetId si es necesario
+          let filteredSummary = portfolioData;
+          if (normalizedAssetId) {
+            filteredSummary = {
+              ...portfolioData,
+              assets: portfolioData.assets.filter(
+                (asset) => asset.assetId.toUpperCase() === normalizedAssetId.toUpperCase(),
+              ),
+            };
+          }
 
-        if (!transactionsResponse.ok) {
-          throw new Error("No se pudo cargar el resumen del portfolio");
-        }
+          setSummary(filteredSummary);
+        } else {
+          // Si no hay filterUserId específico, usar la lógica de transacciones para mostrar todas
+          const params = new URLSearchParams({
+            page: "1",
+            pageSize: "1000",
+            sortBy: "date",
+            sortOrder: "desc",
+          });
 
-        const transactionPayload = (await transactionsResponse.json()) as {
-          data: TransactionRecord[];
-        };
+          if (normalizedAssetId) {
+            params.set("assetId", normalizedAssetId);
+          }
 
-        let exchangeRateUsed: number | null = null;
-        if (exchangeRateResponse.ok) {
-          const exchangeRatePayload = (await exchangeRateResponse.json()) as {
-            exchangeRateUsed: number | null;
+          const [transactionsResponse, exchangeRateResponse] = await Promise.all([
+            fetch(`http://localhost:3001/api/transactions?${params.toString()}`, {
+              cache: "no-store",
+            }),
+            fetch("http://localhost:3001/api/exchange-rate", { cache: "no-store" }),
+          ]);
+
+          if (!transactionsResponse.ok) {
+            throw new Error("No se pudo cargar el resumen del portfolio");
+          }
+
+          const transactionPayload = (await transactionsResponse.json()) as {
+            data: TransactionRecord[];
           };
-          exchangeRateUsed = exchangeRatePayload.exchangeRateUsed;
-        }
 
-        setSummary(buildSummary(transactionPayload.data, exchangeRateUsed));
+          let exchangeRateUsed: number | null = null;
+          if (exchangeRateResponse.ok) {
+            const exchangeRatePayload = (await exchangeRateResponse.json()) as {
+              exchangeRateUsed: number | null;
+            };
+            exchangeRateUsed = exchangeRatePayload.exchangeRateUsed;
+          }
+
+          setSummary(buildSummary(transactionPayload.data, exchangeRateUsed));
+        }
       } catch (fetchError) {
         const message = fetchError instanceof Error ? fetchError.message : "Error desconocido";
         setError(message);
@@ -323,12 +350,12 @@ export default function DashboardSummary({
                       <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                          item.assetType === "CEDEAR"
+                          item.type === "CEDEAR"
                             ? "bg-sky-500/20 text-sky-300"
                             : "bg-slate-500/20 text-slate-300"
                         }`}
                       >
-                        {item.assetType === "CEDEAR" ? "CEDEAR" : "Local"}
+                        {item.type === "CEDEAR" ? "CEDEAR" : "Local"}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
