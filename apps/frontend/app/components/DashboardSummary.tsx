@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { TransactionRecord } from "../types";
+import { apiUrl } from "../utils/api";
 import { generatePortfolioPDF } from "../utils/generatePdfReport";
 
 type AssetType = "CEDEAR" | "ACCION_LOCAL";
@@ -168,7 +169,7 @@ export default function DashboardSummary({
         // precios actuales con Yahoo Finance y rendimiento correctamente
         if (normalizedUserId) {
           const portfolioResponse = await fetch(
-            `http://localhost:3001/api/portfolio/${normalizedUserId}`,
+            apiUrl(`/api/portfolio/${normalizedUserId}`),
             { cache: "no-store" },
           );
 
@@ -204,10 +205,10 @@ export default function DashboardSummary({
           }
 
           const [transactionsResponse, exchangeRateResponse] = await Promise.all([
-            fetch(`http://localhost:3001/api/transactions?${params.toString()}`, {
+            fetch(apiUrl(`/api/transactions?${params.toString()}`), {
               cache: "no-store",
             }),
-            fetch("http://localhost:3001/api/exchange-rate", { cache: "no-store" }),
+            fetch(apiUrl("/api/exchange-rate"), { cache: "no-store" }),
           ]);
 
           if (!transactionsResponse.ok) {

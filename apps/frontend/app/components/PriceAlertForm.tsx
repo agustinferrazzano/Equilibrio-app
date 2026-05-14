@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { apiUrl } from "../utils/api";
 
 interface PriceAlertFormProps {
   onAlertCreated: () => void;
@@ -36,7 +37,7 @@ export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) 
   useEffect(() => {
     const fetchTickers = async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/tickers/suggested");
+        const response = await fetch(apiUrl("/api/tickers/suggested"));
         if (response.ok) {
           const tickers = (await response.json()) as string[];
           setAvailableTickers(tickers);
@@ -96,7 +97,7 @@ export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) 
     }
 
     try {
-      const response = await fetch("http://localhost:3001/api/alerts", {
+      const response = await fetch(apiUrl("/api/alerts"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

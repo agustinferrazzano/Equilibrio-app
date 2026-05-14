@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { AssetType, TransactionType, ASSET_DICTIONARY } from "@equilibrio/core";
 import { TransactionRecord } from "../types";
+import { apiUrl } from "../utils/api";
 
 interface TransactionFormProps {
   onTransactionAdded: (transaction: TransactionRecord) => void;
@@ -57,7 +58,7 @@ export default function TransactionForm({
   useEffect(() => {
     const fetchTickers = async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/tickers/suggested");
+        const response = await fetch(apiUrl("/api/tickers/suggested"));
         if (response.ok) {
           const tickers = (await response.json()) as string[];
           setAvailableTickers(tickers);
@@ -146,8 +147,8 @@ export default function TransactionForm({
 
     try {
       const endpoint = isEditing
-        ? `http://localhost:3001/api/transactions/${values.id}`
-        : "http://localhost:3001/api/transactions";
+        ? apiUrl(`/api/transactions/${values.id}`)
+        : apiUrl("/api/transactions");
 
       const payload = isEditing ? data : { id: values.id, ...data };
 

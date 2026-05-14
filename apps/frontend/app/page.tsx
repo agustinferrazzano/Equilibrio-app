@@ -7,6 +7,7 @@ import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
 import PriceAlertForm from "./components/PriceAlertForm";
 import { PaginatedTransactionsResponse, TransactionRecord } from "./types";
+import { apiUrl } from "./utils/api";
 
 type SortBy = "date" | "price" | "quantity";
 type SortOrder = "asc" | "desc";
@@ -51,7 +52,7 @@ export default function Home() {
         params.set("assetId", filterAssetId.trim());
       }
 
-      const response = await fetch(`http://localhost:3001/api/transactions?${params.toString()}`);
+      const response = await fetch(apiUrl(`/api/transactions?${params.toString()}`));
       if (!response.ok) {
         return;
       }
@@ -108,7 +109,7 @@ export default function Home() {
 
     try {
       setDeletingId(pendingDeleteId);
-      const response = await fetch(`http://localhost:3001/api/transactions/${pendingDeleteId}`, {
+      const response = await fetch(apiUrl(`/api/transactions/${pendingDeleteId}`), {
         method: "DELETE",
       });
 

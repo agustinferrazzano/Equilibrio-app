@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - backend-data:/app/apps/backend/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://backend:3001
+    ports:
+      - "3002:3002"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

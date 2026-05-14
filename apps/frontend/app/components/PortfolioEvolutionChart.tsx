@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { apiUrl } from "../utils/api";
 
 interface PortfolioEvolutionPoint {
   date: string;
@@ -40,7 +41,7 @@ export default function PortfolioEvolutionChart() {
 
       try {
         const response = await fetch(
-          `http://localhost:3001/api/portfolio/${DEMO_USER_ID}/evolution`,
+          apiUrl(`/api/portfolio/${DEMO_USER_ID}/evolution`),
           {
             cache: "no-store",
           },
