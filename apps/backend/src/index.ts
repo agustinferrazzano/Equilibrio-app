@@ -49,8 +49,10 @@ const checkPriceAlertsUseCase = new CheckPriceAlertsUseCase(
 	marketDataService,
 );
 
-// Iniciar cron job para verificar alertas de precio
-startPriceAlertsCronJob(checkPriceAlertsUseCase);
+// Iniciar cron job para verificar alertas de precio (no ejecutar en tests)
+if (process.env.NODE_ENV !== 'test') {
+	startPriceAlertsCronJob(checkPriceAlertsUseCase);
+}
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
 	if (typeof value !== "string") {
@@ -420,6 +422,12 @@ process.on("SIGINT", () => {
 	process.exit(0);
 });
 
-app.listen(port, () => {
-	console.log(`Backend API listening on http://localhost:${port}`);
-});
+// Export app for testing
+export default app;
+
+// Start server only when not running tests
+if (process.env.NODE_ENV !== 'test') {
+	app.listen(port, () => {
+		console.log(`Backend API listening on http://localhost:${port}`);
+	});
+}
