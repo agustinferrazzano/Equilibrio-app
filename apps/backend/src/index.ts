@@ -23,10 +23,17 @@ import { startPriceAlertsCronJob } from "./jobs/priceAlertsJob";
 
 const app = express();
 const port = 3001;
-const dataDirectory = path.resolve(__dirname, "../data");
-const databasePath = path.join(dataDirectory, "equilibrio.db");
 
-fs.mkdirSync(dataDirectory, { recursive: true });
+// Use in-memory DB for tests to isolate environment
+let databasePath: string;
+const dataDirectory = path.resolve(__dirname, "../data");
+
+if (process.env.NODE_ENV === 'test') {
+	databasePath = ':memory:';
+} else {
+	databasePath = path.join(dataDirectory, "equilibrio.db");
+	fs.mkdirSync(dataDirectory, { recursive: true });
+}
 
 const database = new Database(databasePath);
 runMigrations(database);
@@ -422,7 +429,8 @@ process.on("SIGINT", () => {
 	process.exit(0);
 });
 
-// Export app for testing
+// Export app and database for testing
+export { database };
 export default app;
 
 // Start server only when not running tests
