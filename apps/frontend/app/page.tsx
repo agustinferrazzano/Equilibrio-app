@@ -33,6 +33,7 @@ export default function Home() {
   const [loadingList, setLoadingList] = useState(false);
   const [alertUserId, setAlertUserId] = useState("");
   const [alertsRefreshToken, setAlertsRefreshToken] = useState(0);
+  const [activeUserId, setActiveUserId] = useState("");
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
@@ -143,6 +144,12 @@ export default function Home() {
     setPage(1);
   };
 
+  const handleSetActiveUser = (userId: string) => {
+    setActiveUserId(userId);
+    setFilterUserId(userId);
+    setPage(1);
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden px-4 py-8 md:py-12">
       <div className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-sky-500/15 blur-3xl" />
@@ -173,6 +180,42 @@ export default function Home() {
           <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400 md:text-base">
             Controla movimientos de compra y venta con una interfaz limpia, segura y preparada para crecimiento.
           </p>
+
+          {/* Active user context bar */}
+          <div className="mx-auto mt-6 flex w-full max-w-lg items-center gap-3">
+            <div className="relative flex-1">
+              <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+                <span className={`h-2 w-2 rounded-full transition-colors ${
+                  activeUserId.trim() ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-slate-600"
+                }`} />
+              </div>
+              <input
+                type="text"
+                value={activeUserId}
+                onChange={(e) => handleSetActiveUser(e.target.value)}
+                placeholder="Usuario activo (ej: user-1)"
+                className="ui-input pl-8 text-sm"
+              />
+            </div>
+            {activeUserId.trim() && (
+              <button
+                type="button"
+                onClick={() => { setActiveUserId(""); setFilterUserId(""); setPage(1); }}
+                className="btn-muted rounded-md px-3 py-2 text-xs"
+              >
+                ✕ Limpiar
+              </button>
+            )}
+          </div>
+          {activeUserId.trim() ? (
+            <p className="mx-auto mt-2 text-xs text-emerald-400/80">
+              ✓ Mostrando portfolio de <span className="font-semibold">{activeUserId}</span> con precios en tiempo real
+            </p>
+          ) : (
+            <p className="mx-auto mt-2 text-xs text-slate-500">
+              Ingresá un usuario para ver precios reales y rendimiento.
+            </p>
+          )}
         </header>
 
         <div className="space-y-4">
@@ -215,6 +258,7 @@ export default function Home() {
                   value={filterUserId}
                   onChange={(e) => {
                     setFilterUserId(e.target.value);
+                    setActiveUserId(e.target.value);
                     setPage(1);
                   }}
                   className="ui-input"
@@ -315,11 +359,11 @@ export default function Home() {
 
           <DashboardSummary
             refreshToken={reloadToken}
-            filterUserId={filterUserId}
+            filterUserId={activeUserId}
             filterAssetId={filterAssetId}
           />
 
-          <PortfolioEvolutionChart />
+          <PortfolioEvolutionChart userId={activeUserId} />
         </div>
       </div>
 
