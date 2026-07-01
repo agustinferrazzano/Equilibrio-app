@@ -4,7 +4,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiUrl } from "../utils/api";
 
 interface PriceAlertFormProps {
-  onAlertCreated: () => void;
+  onAlertCreated: (userId: string) => void;
+  initialUserId?: string;
+  onUserIdChange?: (userId: string) => void;
 }
 
 type AlertCondition = "GREATER_THAN" | "LESS_THAN";
@@ -23,11 +25,18 @@ const EMPTY_VALUES: FormValues = {
   condition: "",
 };
 
-export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) {
+export default function PriceAlertForm({
+  onAlertCreated,
+  initialUserId = "",
+  onUserIdChange,
+}: PriceAlertFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [values, setValues] = useState<FormValues>({
+    ...EMPTY_VALUES,
+    userId: initialUserId,
+  });
   const [availableTickers, setAvailableTickers] = useState<string[]>([]);
   const [tickerFilter, setTickerFilter] = useState("");
   const [loadingTickers, setLoadingTickers] = useState(true);
@@ -54,6 +63,9 @@ export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) 
 
   const handleChange = (field: keyof FormValues, value: string) => {
     setValues((previous) => ({ ...previous, [field]: value }));
+    if (field === "userId" && onUserIdChange) {
+      onUserIdChange(value);
+    }
   };
 
   const filteredTickers = availableTickers.filter((ticker) =>
@@ -116,9 +128,10 @@ export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) 
       }
 
       setSuccessMessage("Alerta de precio creada exitosamente");
-      setValues(EMPTY_VALUES);
+      const createdUserId = values.userId.trim();
+      setValues({ ...EMPTY_VALUES, userId: createdUserId });
       setTickerFilter("");
-      onAlertCreated();
+      onAlertCreated(createdUserId);
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -130,13 +143,18 @@ export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="surface-card space-y-4 rounded-xl p-5 md:p-6">
-      <h2 className="display-font mb-1 text-3xl text-slate-100">Crear Alerta de Precio</h2>
-      <p className="text-sm text-slate-400">
-        Configura una alerta para que te notifique cuando un activo alcance un precio objetivo.
-      </p>
+      {!onUserIdChange && (
+        <>
+          <h2 className="display-font mb-1 text-3xl text-slate-100">Crear Alerta de Precio</h2>
+          <p className="text-sm text-slate-400">
+            Configura una alerta para que te notifique cuando un activo alcance un precio objetivo.
+          </p>
+        </>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
+        {!onUserIdChange && (
+          <div>
           <label className="ui-label block">User ID</label>
           <input
             type="text"
@@ -148,6 +166,7 @@ export default function PriceAlertForm({ onAlertCreated }: PriceAlertFormProps) 
             placeholder="user-1"
           />
         </div>
+        )}
 
         <div className="md:col-span-2">
           <label className="ui-label block">Ticker (Acción o CEDEAR)</label>

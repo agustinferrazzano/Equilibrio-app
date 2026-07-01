@@ -6,6 +6,7 @@ import PortfolioEvolutionChart from "./components/PortfolioEvolutionChart";
 import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
 import PriceAlertForm from "./components/PriceAlertForm";
+import AlertList from "./components/AlertList";
 import { PaginatedTransactionsResponse, TransactionRecord } from "./types";
 import { apiUrl } from "./utils/api";
 
@@ -30,6 +31,8 @@ export default function Home() {
   const [filterAssetId, setFilterAssetId] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
+  const [alertUserId, setAlertUserId] = useState("");
+  const [alertsRefreshToken, setAlertsRefreshToken] = useState(0);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
@@ -198,7 +201,7 @@ export default function Home() {
                 onClick={() => setIsAlertFormOpen((previous) => !previous)}
                 className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
               >
-                {isAlertFormOpen ? "Cerrar alerta" : "Configurar alerta"}
+                {isAlertFormOpen ? "Cerrar alertas" : "🔔 Gestionar alertas"}
               </button>
             </div>
           </div>
@@ -355,10 +358,15 @@ export default function Home() {
       {isAlertFormOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-700/70 bg-slate-900/95 p-4 shadow-2xl md:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
-                Nueva alerta de precio
-              </h3>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+                  🔔 Gestión de alertas de precio
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Creá nuevas alertas y gestioná las activas desde acá.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsAlertFormOpen(false)}
@@ -368,10 +376,44 @@ export default function Home() {
               </button>
             </div>
 
-            <PriceAlertForm
-              onAlertCreated={() => {
-                setIsAlertFormOpen(false);
-              }}
+            {/* Shared userId input */}
+            <div className="mb-5 rounded-xl border border-slate-700/50 bg-slate-800/40 px-4 py-3">
+              <label className="ui-label block mb-1">User ID (compartido)</label>
+              <input
+                type="text"
+                value={alertUserId}
+                onChange={(e) => setAlertUserId(e.target.value)}
+                placeholder="Ej: user-1"
+                className="ui-input"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Este ID se usará tanto para crear la alerta como para listar las existentes.
+              </p>
+            </div>
+
+            {/* Create alert form */}
+            <div className="mb-5">
+              <PriceAlertForm
+                initialUserId={alertUserId}
+                onUserIdChange={setAlertUserId}
+                onAlertCreated={(createdUserId) => {
+                  setAlertUserId(createdUserId);
+                  setAlertsRefreshToken((t) => t + 1);
+                }}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="mb-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-700/60" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Alertas existentes</span>
+              <div className="h-px flex-1 bg-slate-700/60" />
+            </div>
+
+            {/* Active alerts list */}
+            <AlertList
+              userId={alertUserId}
+              refreshToken={alertsRefreshToken}
             />
           </div>
         </div>
