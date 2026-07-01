@@ -7,6 +7,8 @@ import TransactionForm from "./components/TransactionForm";
 import TransactionList from "./components/TransactionList";
 import PriceAlertForm from "./components/PriceAlertForm";
 import AlertList from "./components/AlertList";
+import LoginPage from "./components/LoginPage";
+import { useAuth } from "./context/AuthContext";
 import { PaginatedTransactionsResponse, TransactionRecord } from "./types";
 import { apiUrl } from "./utils/api";
 
@@ -15,6 +17,8 @@ type SortOrder = "asc" | "desc";
 type ToastState = { type: "success" | "error"; message: string } | null;
 
 export default function Home() {
+  const { userId: authUserId, isReady, logout } = useAuth();
+
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<TransactionRecord | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -33,7 +37,14 @@ export default function Home() {
   const [loadingList, setLoadingList] = useState(false);
   const [alertUserId, setAlertUserId] = useState("");
   const [alertsRefreshToken, setAlertsRefreshToken] = useState(0);
-  const [activeUserId, setActiveUserId] = useState("");
+
+  // Sync filterUserId with authenticated user on load
+  useEffect(() => {
+    if (authUserId) {
+      setFilterUserId(authUserId);
+      setAlertUserId(authUserId);
+    }
+  }, [authUserId]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
@@ -137,18 +148,27 @@ export default function Home() {
   };
 
   const clearFilters = () => {
-    setFilterUserId("");
     setFilterAssetId("");
     setSortBy("date");
     setSortOrder("desc");
+    // Keep filterUserId pinned to authenticated user
+    setFilterUserId(authUserId ?? "");
     setPage(1);
   };
 
-  const handleSetActiveUser = (userId: string) => {
-    setActiveUserId(userId);
-    setFilterUserId(userId);
-    setPage(1);
-  };
+  // Show loading shimmer while localStorage is being read
+  if (!isReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!authUserId) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden px-4 py-8 md:py-12">
@@ -156,66 +176,51 @@ export default function Home() {
       <div className="pointer-events-none absolute top-16 -right-16 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
 
       <div className="relative mx-auto w-full max-w-[96rem]">
-        <header className="mb-8 text-center md:mb-10">
-          <div className="mx-auto mb-3 flex w-fit items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.9)]" />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200">System online</p>
-          </div>
-
-          <div className="mt-2 flex justify-center">
-            <h1 className="relative inline-block text-6xl font-extrabold uppercase tracking-[0.02em] leading-tight md:text-7xl">
-              <span aria-hidden="true" className="absolute -inset-1 blur-md opacity-55 bg-gradient-to-r from-cyan-400/45 via-blue-300/35 to-emerald-300/35" />
-              <span className="relative bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.32)]">
-                EQUILIBRIO
-              </span>
-            </h1>
-          </div>
-
-          <div className="mx-auto mt-2 flex w-fit items-center gap-3">
-            <span className="h-px w-14 bg-gradient-to-r from-transparent to-cyan-300/70" />
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300/90" />
-            <span className="h-px w-14 bg-gradient-to-l from-transparent to-cyan-300/70" />
-          </div>
-
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400 md:text-base">
-            Controla movimientos de compra y venta con una interfaz limpia, segura y preparada para crecimiento.
-          </p>
-
-          {/* Active user context bar */}
-          <div className="mx-auto mt-6 flex w-full max-w-lg items-center gap-3">
-            <div className="relative flex-1">
-              <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-                <span className={`h-2 w-2 rounded-full transition-colors ${
-                  activeUserId.trim() ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-slate-600"
-                }`} />
-              </div>
-              <input
-                type="text"
-                value={activeUserId}
-                onChange={(e) => handleSetActiveUser(e.target.value)}
-                placeholder="Usuario activo (ej: user-1)"
-                className="ui-input pl-8 text-sm"
-              />
+        <header className="mb-8 md:mb-10">
+          {/* Top bar: brand pill + logout */}
+          <div className="flex items-center justify-between">
+            <div className="flex w-fit items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.9)]" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200">System online</p>
             </div>
-            {activeUserId.trim() && (
+            {/* User badge + logout */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                <span className="text-xs font-semibold text-emerald-300">{authUserId}</span>
+              </div>
               <button
                 type="button"
-                onClick={() => { setActiveUserId(""); setFilterUserId(""); setPage(1); }}
-                className="btn-muted rounded-md px-3 py-2 text-xs"
+                onClick={logout}
+                className="btn-muted rounded-full px-3 py-1.5 text-xs"
+                title="Cerrar sesión"
               >
-                ✕ Limpiar
+                Salir
               </button>
-            )}
+            </div>
           </div>
-          {activeUserId.trim() ? (
-            <p className="mx-auto mt-2 text-xs text-emerald-400/80">
-              ✓ Mostrando portfolio de <span className="font-semibold">{activeUserId}</span> con precios en tiempo real
+
+          {/* Title */}
+          <div className="mt-6 text-center">
+            <div className="mt-2 flex justify-center">
+              <h1 className="relative inline-block text-6xl font-extrabold uppercase tracking-[0.02em] leading-tight md:text-7xl">
+                <span aria-hidden="true" className="absolute -inset-1 blur-md opacity-55 bg-gradient-to-r from-cyan-400/45 via-blue-300/35 to-emerald-300/35" />
+                <span className="relative bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.32)]">
+                  EQUILIBRIO
+                </span>
+              </h1>
+            </div>
+
+            <div className="mx-auto mt-2 flex w-fit items-center gap-3">
+              <span className="h-px w-14 bg-gradient-to-r from-transparent to-cyan-300/70" />
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-300/90" />
+              <span className="h-px w-14 bg-gradient-to-l from-transparent to-cyan-300/70" />
+            </div>
+
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400 md:text-base">
+              Controla movimientos de compra y venta con una interfaz limpia, segura y preparada para crecimiento.
             </p>
-          ) : (
-            <p className="mx-auto mt-2 text-xs text-slate-500">
-              Ingresá un usuario para ver precios reales y rendimiento.
-            </p>
-          )}
+          </div>
         </header>
 
         <div className="space-y-4">
@@ -258,7 +263,6 @@ export default function Home() {
                   value={filterUserId}
                   onChange={(e) => {
                     setFilterUserId(e.target.value);
-                    setActiveUserId(e.target.value);
                     setPage(1);
                   }}
                   className="ui-input"
@@ -359,11 +363,11 @@ export default function Home() {
 
           <DashboardSummary
             refreshToken={reloadToken}
-            filterUserId={activeUserId}
+            filterUserId={authUserId}
             filterAssetId={filterAssetId}
           />
 
-          <PortfolioEvolutionChart userId={activeUserId} />
+          <PortfolioEvolutionChart userId={authUserId} />
         </div>
       </div>
 
