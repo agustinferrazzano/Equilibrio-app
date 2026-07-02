@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import DashboardSummary from "./components/DashboardSummary";
 import PortfolioEvolutionChart from "./components/PortfolioEvolutionChart";
 import TransactionForm from "./components/TransactionForm";
@@ -202,6 +203,20 @@ export default function Home() {
 
           {/* Title */}
           <div className="mt-6 text-center">
+            {/* Logo centrado sobre el título */}
+            <div className="mb-4 flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-[18px] bg-emerald-600/25 blur-xl scale-125" />
+                <Image
+                  src="/logo.png"
+                  alt="Equilibrio"
+                  width={64}
+                  height={64}
+                  className="relative rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.6)] ring-1 ring-white/8"
+                  priority
+                />
+              </div>
+            </div>
             <div className="mt-2 flex justify-center">
               <h1 className="relative inline-block text-6xl font-extrabold uppercase tracking-[0.02em] leading-tight md:text-7xl">
                 <span aria-hidden="true" className="absolute -inset-1 blur-md opacity-55 bg-gradient-to-r from-cyan-400/45 via-blue-300/35 to-emerald-300/35" />

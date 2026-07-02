@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
@@ -38,17 +39,20 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo / Title */}
         <div className="mb-8 text-center">
-          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_32px_rgba(56,189,248,0.2)]">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="h-7 w-7 text-cyan-300"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5l4-4 4 4 5-6 5 4" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18" />
-            </svg>
+          {/* Logo */}
+          <div className="mb-4 flex justify-center">
+            <div className="relative">
+              {/* Glow ring behind the logo */}
+              <div className="absolute inset-0 rounded-[22px] bg-emerald-500/20 blur-xl scale-110" />
+              <Image
+                src="/logo.png"
+                alt="Equilibrio logo"
+                width={80}
+                height={80}
+                className="relative rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
+                priority
+              />
+            </div>
           </div>
           <h1 className="text-4xl font-extrabold uppercase tracking-[0.08em]">
             <span className="bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.3)]">

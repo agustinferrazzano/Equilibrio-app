@@ -11,6 +11,10 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "Equilibrio",
   description: "Gestor de transacciones de inversion",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
