@@ -1,153 +1,168 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [inputValue, setInputValue] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = inputValue.trim();
-
-    if (!trimmed) {
-      setError("El nombre de usuario no puede estar vacío.");
+    if (!username.trim() || !password.trim()) {
+      setError("Completá usuario y contraseña.");
       return;
     }
-
-    if (trimmed.length < 2) {
-      setError("El nombre de usuario debe tener al menos 2 caracteres.");
-      return;
+    setLoading(true);
+    setError(null);
+    try {
+      await login(username.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+    } finally {
+      setLoading(false);
     }
-
-    if (!/^[\w-]+$/.test(trimmed)) {
-      setError("Solo se permiten letras, números, guiones y guiones bajos.");
-      return;
-    }
-
-    setError("");
-    setIsLoading(true);
-
-    // Small delay for UX feedback
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    login(trimmed);
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
-      {/* Ambient background blobs */}
-      <div className="pointer-events-none absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full bg-cyan-500/10 blur-[120px]" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-[400px] w-[400px] rounded-full bg-blue-600/10 blur-[100px]" />
-      <div className="pointer-events-none absolute top-1/2 left-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/5 blur-[80px]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      {/* Background blobs */}
+      <div className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-sky-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/8 blur-3xl" />
 
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo / Brand */}
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 flex w-fit items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.9)]" />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200">
-              Sistema listo
-            </p>
+      <div className="relative w-full max-w-md">
+        {/* Logo / Title */}
+        <div className="mb-8 text-center">
+          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_32px_rgba(56,189,248,0.2)]">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="h-7 w-7 text-cyan-300"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5l4-4 4 4 5-6 5 4" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18" />
+            </svg>
           </div>
-
-          <h1 className="relative inline-block text-6xl font-extrabold uppercase tracking-tight">
-            <span
-              aria-hidden="true"
-              className="absolute -inset-1 rounded-lg bg-gradient-to-r from-cyan-400/40 via-blue-300/30 to-emerald-300/30 blur-md opacity-60"
-            />
-            <span className="relative bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.3)]">
+          <h1 className="text-4xl font-extrabold uppercase tracking-[0.08em]">
+            <span className="bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.3)]">
               EQUILIBRIO
             </span>
           </h1>
-
-          <p className="mt-3 text-sm text-slate-400">
-            Tu gestor de portfolio de inversiones.
+          <p className="mt-2 text-sm text-slate-400">
+            Plataforma de gestión de inversiones
           </p>
         </div>
 
-        {/* Login card */}
-        <div className="surface-card rounded-2xl p-8">
+        {/* Card */}
+        <div className="surface-card rounded-2xl border border-slate-700/60 p-7 shadow-2xl">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-slate-100">Bienvenido</h2>
+            <h2 className="text-lg font-semibold text-slate-100">Iniciar sesión</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Ingresá tu nombre de usuario para acceder a tu portfolio.
+              Ingresá tus credenciales para continuar
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="userId"
-                className="ui-label mb-1.5 block"
-              >
-                Nombre de usuario
+          <form onSubmit={handleSubmit} className="space-y-4" id="login-form">
+            {/* Username */}
+            <div className="space-y-1.5">
+              <label htmlFor="login-username" className="ui-label block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Usuario
               </label>
               <input
-                id="userId"
+                id="login-username"
                 type="text"
-                autoFocus
                 autoComplete="username"
-                value={inputValue}
+                value={username}
                 onChange={(e) => {
-                  setInputValue(e.target.value);
-                  if (error) setError("");
+                  setUsername(e.target.value);
+                  setError(null);
                 }}
-                placeholder="Ej: user-1, juan, maria"
-                className="ui-input"
-                disabled={isLoading}
+                placeholder="Tu nombre de usuario"
+                className="ui-input w-full"
+                disabled={loading}
               />
-              {error && (
-                <p className="mt-1.5 text-xs text-rose-400">{error}</p>
-              )}
-              <p className="mt-1.5 text-[11px] text-slate-500">
-                Solo letras, números, guiones y guiones bajos. Sin espacios.
-              </p>
             </div>
 
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="login-password" className="ui-label block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="••••••••••••"
+                  className="ui-input w-full pr-10"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-200"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3.5 py-2.5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="mt-0.5 h-4 w-4 shrink-0 text-rose-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <p className="text-sm text-rose-300">{error}</p>
+              </div>
+            )}
+
+            {/* Submit */}
             <button
+              id="login-submit"
               type="submit"
-              disabled={isLoading || !inputValue.trim()}
-              className="btn-primary w-full py-3 text-sm font-bold tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={loading}
+              className="relative mt-2 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-cyan-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.25)] transition hover:bg-cyan-400 disabled:opacity-60"
             >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Ingresando...
-                </span>
+              {loading ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                  Iniciando sesión...
+                </>
               ) : (
-                "Ingresar →"
+                "Iniciar sesión"
               )}
             </button>
           </form>
 
-          {/* Info section */}
-          <div className="mt-6 rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              ¿Cómo funciona?
-            </p>
-            <ul className="mt-2 space-y-1.5 text-xs text-slate-400">
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-400">→</span>
-                Tu usuario es el identificador de tu portfolio personal.
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-400">→</span>
-                No se requiere contraseña — es un entorno de uso personal.
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-cyan-400">→</span>
-                Tu sesión se guarda en el navegador automáticamente.
-              </li>
-            </ul>
-          </div>
+          {/* Footer hint */}
+          <p className="mt-5 text-center text-[11px] text-slate-500">
+            Acceso protegido · Equilibrio App © 2026
+          </p>
         </div>
-
-        <p className="mt-6 text-center text-xs text-slate-600">
-          Equilibrio · Gestor de Inversiones
-        </p>
       </div>
     </div>
   );

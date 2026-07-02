@@ -1,9 +1,11 @@
 import cors from "cors";
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import {
 	AddTransactionUseCase,
 	GetPortfolioSummaryUseCase,
@@ -20,6 +22,34 @@ import { YahooFinanceService } from "./services/YahooFinanceService";
 import { DolarApiService } from "./services/DolarApiService";
 import { tickerValidationService } from "./services/TickerValidationService";
 import { startPriceAlertsCronJob } from "./jobs/priceAlertsJob";
+
+const JWT_SECRET = process.env.JWT_SECRET ?? "equilibrio-super-secret-key-2026";
+const JWT_EXPIRES_IN = "7d";
+
+// Extend Express Request to carry authenticated user info
+declare global {
+	namespace Express {
+		interface Request {
+			authUser?: { userId: string; displayName: string };
+		}
+	}
+}
+
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+	const authHeader = req.headers.authorization;
+	if (!authHeader?.startsWith("Bearer ")) {
+		res.status(401).json({ message: "No autenticado" });
+		return;
+	}
+	const token = authHeader.slice(7);
+	try {
+		const payload = jwt.verify(token, JWT_SECRET) as { userId: string; displayName: string };
+		req.authUser = payload;
+		next();
+	} catch {
+		res.status(401).json({ message: "Token inválido o expirado" });
+	}
+}
 
 const app = express();
 const port = 3001;
@@ -102,6 +132,53 @@ const parseAssetType = (value: unknown): AssetType => {
 
 app.use(cors());
 app.use(express.json());
+
+// ─── Auth routes (public) ────────────────────────────────────────────────────
+
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+	try {
+		const { username, password } = req.body as { username?: string; password?: string };
+
+		if (!username || !password) {
+			return res.status(400).json({ message: "Usuario y contraseña requeridos" });
+		}
+
+		type UserRow = { id: string; username: string; passwordHash: string; displayName: string };
+		const user = database
+			.prepare("SELECT * FROM users WHERE username = ?")
+			.get(username) as UserRow | undefined;
+
+		if (!user) {
+			return res.status(401).json({ message: "Credenciales inválidas" });
+		}
+
+		const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+		if (!passwordMatch) {
+			return res.status(401).json({ message: "Credenciales inválidas" });
+		}
+
+		const token = jwt.sign(
+			{ userId: user.id, displayName: user.displayName },
+			JWT_SECRET,
+			{ expiresIn: JWT_EXPIRES_IN },
+		);
+
+		return res.json({
+			token,
+			userId: user.id,
+			displayName: user.displayName,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(500).json({ message });
+	}
+});
+
+app.get("/api/auth/me", requireAuth, (req: Request, res: Response) => {
+	return res.json(req.authUser);
+});
+
+// ─── General routes ───────────────────────────────────────────────────────────
 
 app.get("/", (_req: Request, res: Response) => {
 	return res.json({

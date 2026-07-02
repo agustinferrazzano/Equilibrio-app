@@ -17,7 +17,7 @@ type SortOrder = "asc" | "desc";
 type ToastState = { type: "success" | "error"; message: string } | null;
 
 export default function Home() {
-  const { userId: authUserId, isReady, logout } = useAuth();
+  const { userId: authUserId, displayName: authDisplayName, isReady, logout } = useAuth();
 
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<TransactionRecord | null>(null);
@@ -187,7 +187,7 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                <span className="text-xs font-semibold text-emerald-300">{authUserId}</span>
+                <span className="text-xs font-semibold text-emerald-300">{authDisplayName ?? authUserId}</span>
               </div>
               <button
                 type="button"

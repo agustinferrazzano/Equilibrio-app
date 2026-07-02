@@ -80,6 +80,56 @@ const migrations: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 5,
+    name: "create_users_table_and_seed_admin",
+    up: (db) => {
+      db.prepare(
+        `
+          CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            passwordHash TEXT NOT NULL,
+            displayName TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+          )
+        `,
+      ).run();
+      db.prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)",
+      ).run();
+
+      // Seed the main user using bcryptjs synchronous hash
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const bcrypt = require("bcryptjs") as typeof import("bcryptjs");
+      const passwordHash = bcrypt.hashSync("FerrazzanoGoogle", 10);
+
+      db.prepare(
+        `INSERT OR IGNORE INTO users (id, username, passwordHash, displayName, createdAt)
+         VALUES (?, ?, ?, ?, ?)`,
+      ).run(
+        "agustin-ferrazzano",
+        "Agustin Ferrazzano",
+        passwordHash,
+        "Agustín Ferrazzano",
+        new Date().toISOString(),
+      );
+    },
+  },
+  {
+    version: 6,
+    name: "migrate_all_transactions_to_agustin",
+    up: (db) => {
+      // Reassign every existing transaction to the canonical user id
+      db.prepare(
+        "UPDATE transactions SET userId = 'agustin-ferrazzano'",
+      ).run();
+      // Same for price alerts
+      db.prepare(
+        "UPDATE price_alerts SET userId = 'agustin-ferrazzano'",
+      ).run();
+    },
+  },
 ];
 
 export function runMigrations(db: Database): number {
@@ -112,6 +162,7 @@ export function runMigrations(db: Database): number {
     });
 
     transaction();
+    console.log(`[Migration] Applied: v${migration.version} - ${migration.name}`);
   }
 
   return migrations.length;
