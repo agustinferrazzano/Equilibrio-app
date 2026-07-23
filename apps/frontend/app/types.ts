@@ -10,6 +10,7 @@ export interface TransactionRecord {
   quantity: number;
   price: number;
   commission: number;
+  currentMarketPrice?: number;
 }
 
 export interface PaginatedTransactionsResponse {

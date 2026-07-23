@@ -27,7 +27,6 @@ export default function TransactionList({
             <thead className="bg-slate-900/70">
               <tr>
                 <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">ID</th>
-                <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Usuario</th>
                 <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Activo</th>
                 <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Tipo accion</th>
                 <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Operacion</th>
@@ -35,6 +34,7 @@ export default function TransactionList({
                 <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Precio</th>
                 <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Comision</th>
                 <th className="w-[10%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Total</th>
+                <th className="w-[9%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Ganancia</th>
                 <th className="w-[8%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Fecha</th>
                 <th className="w-[14%] px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-400">Acciones</th>
               </tr>
@@ -43,7 +43,6 @@ export default function TransactionList({
               {transactions.map((transaction) => (
                 <tr key={transaction.id} className="border-t border-slate-700/60 hover:bg-slate-800/35">
                   <td className="truncate px-3 py-2 text-slate-100" title={transaction.id}>{transaction.id}</td>
-                  <td className="truncate px-3 py-2 text-slate-100" title={transaction.userId}>{transaction.userId}</td>
                   <td className="truncate px-3 py-2 text-slate-100" title={transaction.assetId}>{transaction.assetId}</td>
                   <td className="px-3 py-2">
                     <span
@@ -72,6 +71,27 @@ export default function TransactionList({
                   <td className="px-3 py-2 text-slate-200">${transaction.commission.toFixed(2)}</td>
                   <td className="px-3 py-2 font-semibold text-amber-200">
                     ${(transaction.quantity * transaction.price + transaction.commission).toFixed(2)}
+                  </td>
+                  <td className="px-3 py-2 text-slate-200 font-medium">
+                    {transaction.type === "SELL" ? (
+                      <span className="text-slate-400">${transaction.price.toFixed(2)}</span>
+                    ) : transaction.currentMarketPrice != null ? (
+                      (() => {
+                        const currentPrice = transaction.currentMarketPrice;
+                        const buyPrice = transaction.price;
+                        const quantity = transaction.quantity;
+                        const diff = (currentPrice - buyPrice) * quantity;
+                        const isPositive = diff >= 0;
+                        const sign = isPositive ? "+" : "-";
+                        return (
+                          <span className={isPositive ? "text-emerald-400" : "text-rose-400"}>
+                            {sign}${Math.abs(diff).toFixed(2)}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-slate-500">N/A</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-slate-300">
                     {new Date(transaction.date).toLocaleDateString()}

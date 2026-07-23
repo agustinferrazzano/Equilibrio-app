@@ -14,6 +14,7 @@ import {
 	Transaction,
 	TransactionType,
 	PriceAlert,
+	ASSET_DICTIONARY,
 } from "@equilibrio/core";
 import { runMigrations } from "./database/migrations";
 import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
@@ -233,7 +234,45 @@ app.get("/api/transactions", async (req: Request, res: Response) => {
 			sortOrder,
 		});
 
-		return res.json(result);
+		const exchangeRate = await currencyService.getExchangeRate("USDARS_MEP");
+
+		const uniqueAssets = Array.from(new Set(result.data.map((t) => t.assetId)));
+		const currentPrices: Record<string, number> = {};
+		for (const id of uniqueAssets) {
+			const definition = ASSET_DICTIONARY[id];
+			let price = null;
+
+			if (definition?.type === "CEDEAR" && exchangeRate && definition.ratio > 0) {
+				const underlyingPriceUSD = await marketDataService.getCurrentPrice(definition.underlyingTicker);
+				if (underlyingPriceUSD !== null) {
+					price = (underlyingPriceUSD * exchangeRate) / definition.ratio;
+				}
+			} else {
+				price = await marketDataService.getCurrentPrice(id);
+			}
+
+			if (price !== null) {
+				currentPrices[id] = price;
+			}
+		}
+
+		const dataWithPrices = result.data.map((t) => ({
+			id: t.id,
+			userId: t.userId,
+			assetId: t.assetId,
+			assetType: t.assetType,
+			type: t.type,
+			date: t.date,
+			quantity: t.quantity,
+			price: t.price,
+			commission: t.commission,
+			currentMarketPrice: currentPrices[t.assetId] ?? null,
+		}));
+
+		return res.json({
+			...result,
+			data: dataWithPrices,
+		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Error inesperado";
 		return res.status(400).json({ message });
