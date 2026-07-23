@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { AssetType, TransactionType, ASSET_DICTIONARY } from "@equilibrio/core";
 import { TransactionRecord } from "../types";
 import { apiUrl } from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 interface TransactionFormProps {
   onTransactionAdded: (transaction: TransactionRecord) => void;
@@ -13,8 +14,6 @@ interface TransactionFormProps {
 }
 
 interface FormValues {
-  id: string;
-  userId: string;
   assetId: string;
   type: TransactionType | "";
   date: string;
@@ -24,8 +23,6 @@ interface FormValues {
 }
 
 const EMPTY_VALUES: FormValues = {
-  id: "",
-  userId: "",
   assetId: "",
   type: "",
   date: "",
@@ -81,8 +78,6 @@ export default function TransactionForm({
     }
 
     setValues({
-      id: editingTransaction.id,
-      userId: editingTransaction.userId,
       assetId: editingTransaction.assetId,
       type: editingTransaction.type,
       date: new Date(editingTransaction.date).toISOString().slice(0, 10),
@@ -114,11 +109,45 @@ export default function TransactionForm({
     setShowTickerDropdown(false);
   };
 
+  const { userId } = useAuth();
+  const [fetchingPrice, setFetchingPrice] = useState(false);
+
+  const handleFetchPrice = async () => {
+    if (!values.assetId) {
+      setError("Primero selecciona un Ticker válido.");
+      return;
+    }
+    setFetchingPrice(true);
+    setError(null);
+    try {
+      const response = await fetch(apiUrl(`/api/market-price/${values.assetId}`));
+      if (!response.ok) {
+        throw new Error("Error al obtener precio de mercado");
+      }
+      const data = await response.json();
+      if (data.price) {
+        handleChange("price", String(data.price));
+      } else {
+        throw new Error("Precio no encontrado");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setFetchingPrice(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
+
+    if (!userId) {
+      setError("Debes estar logueado para agregar una transacción");
+      setLoading(false);
+      return;
+    }
 
     if (!values.assetId) {
       setError("Debe seleccionar un ticker válido");
@@ -135,7 +164,7 @@ export default function TransactionForm({
     const assetType = getAssetTypeFromTicker(values.assetId);
 
     const data = {
-      userId: values.userId,
+      userId,
       assetId: values.assetId.toUpperCase(),
       assetType,
       type: values.type as TransactionType,
@@ -146,11 +175,12 @@ export default function TransactionForm({
     };
 
     try {
+      const transactionId = isEditing ? editingTransaction.id : crypto.randomUUID();
       const endpoint = isEditing
-        ? apiUrl(`/api/transactions/${values.id}`)
+        ? apiUrl(`/api/transactions/${transactionId}`)
         : apiUrl("/api/transactions");
 
-      const payload = isEditing ? data : { id: values.id, ...data };
+      const payload = isEditing ? data : { id: transactionId, ...data };
 
       const response = await fetch(endpoint, {
         method: isEditing ? "PUT" : "POST",
@@ -197,33 +227,6 @@ export default function TransactionForm({
       </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="ui-label block">ID</label>
-          <input
-            type="text"
-            name="id"
-            required
-            value={values.id}
-            onChange={(e) => handleChange("id", e.target.value)}
-            disabled={isEditing}
-            className="ui-input mt-1 disabled:cursor-not-allowed disabled:opacity-70"
-            placeholder="tx-1"
-          />
-        </div>
-
-        <div>
-          <label className="ui-label block">User ID</label>
-          <input
-            type="text"
-            name="userId"
-            required
-            value={values.userId}
-            onChange={(e) => handleChange("userId", e.target.value)}
-            className="ui-input mt-1"
-            placeholder="user-1"
-          />
-        </div>
-
         <div className="md:col-span-2">
           <label className="ui-label block">Ticker (Acción o CEDEAR)</label>
           <div className="relative mt-1">
@@ -313,18 +316,34 @@ export default function TransactionForm({
         </div>
 
         <div>
-          <label className="ui-label block">Precio</label>
-          <input
-            type="number"
-            name="price"
-            step="0.01"
-            min="0"
-            required
-            value={values.price}
-            onChange={(e) => handleChange("price", e.target.value)}
-            className="ui-input mt-1"
-            placeholder="50.00"
-          />
+          <label className="ui-label block flex justify-between items-center">
+            Precio 
+            <span className="text-xs text-slate-400">
+              {values.assetId && getAssetTypeFromTicker(values.assetId) === "CEDEAR" ? "(USD)" : "(ARS)"}
+            </span>
+          </label>
+          <div className="flex gap-2 mt-1">
+            <input
+              type="number"
+              name="price"
+              step="0.01"
+              min="0"
+              required
+              value={values.price}
+              onChange={(e) => handleChange("price", e.target.value)}
+              className="ui-input flex-1"
+              placeholder="50.00"
+            />
+            <button
+              type="button"
+              onClick={handleFetchPrice}
+              disabled={fetchingPrice || !values.assetId}
+              className="btn-secondary px-3 text-sm disabled:opacity-50"
+              title="Obtener Precio Actual"
+            >
+              {fetchingPrice ? "..." : "↓ Actual"}
+            </button>
+          </div>
         </div>
 
         <div>

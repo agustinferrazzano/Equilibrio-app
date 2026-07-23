@@ -216,6 +216,29 @@ app.get("/api/exchange-rate", async (_req: Request, res: Response) => {
 	}
 });
 
+app.get("/api/market-price/:assetId", async (req: Request, res: Response) => {
+	try {
+		const assetIdRaw = Array.isArray(req.params.assetId) ? req.params.assetId[0] : req.params.assetId;
+		const assetId = typeof assetIdRaw === "string" ? assetIdRaw.toUpperCase() : String(assetIdRaw).toUpperCase();
+		const definition = ASSET_DICTIONARY[assetId];
+		
+		// If it's a CEDEAR, we return the USD price of the underlying ticker
+		// Since the user wants to record CEDEAR purchases in USD.
+		const tickerToFetch = definition?.type === "CEDEAR" ? definition.underlyingTicker : assetId;
+		
+		const price = await marketDataService.getCurrentPrice(tickerToFetch);
+
+		if (price === null) {
+			return res.status(404).json({ message: "No se pudo obtener el precio para el activo indicado" });
+		}
+
+		return res.json({ price });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(400).json({ message });
+	}
+});
+
 app.get("/api/transactions", async (req: Request, res: Response) => {
 	try {
 		const userId = typeof req.query.userId === "string" ? req.query.userId : undefined;
