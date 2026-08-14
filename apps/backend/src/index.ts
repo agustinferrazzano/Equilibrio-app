@@ -136,6 +136,24 @@ app.use(express.json());
 
 // ─── Auth routes (public) ────────────────────────────────────────────────────
 
+const generateTokens = (user: { id: string; displayName: string }) => {
+	const accessToken = jwt.sign(
+		{ userId: user.id, displayName: user.displayName },
+		JWT_SECRET,
+		{ expiresIn: "15m" }
+	);
+	
+	const refreshToken = randomUUID() + randomUUID();
+	const hashedToken = bcrypt.hashSync(refreshToken, 10);
+	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+	
+	database.prepare(
+		"INSERT INTO refresh_tokens (id, userId, hashedToken, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)"
+	).run(randomUUID(), user.id, hashedToken, expiresAt, new Date().toISOString());
+
+	return { accessToken, refreshToken };
+};
+
 app.post("/api/auth/login", async (req: Request, res: Response) => {
 	try {
 		const { username, password } = req.body as { username?: string; password?: string };
@@ -149,7 +167,7 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 			.prepare("SELECT * FROM users WHERE username = ?")
 			.get(username) as UserRow | undefined;
 
-		if (!user) {
+		if (!user || !user.passwordHash) {
 			return res.status(401).json({ message: "Credenciales inválidas" });
 		}
 
@@ -158,16 +176,96 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 			return res.status(401).json({ message: "Credenciales inválidas" });
 		}
 
-		const token = jwt.sign(
-			{ userId: user.id, displayName: user.displayName },
-			JWT_SECRET,
-			{ expiresIn: JWT_EXPIRES_IN },
-		);
+		const tokens = generateTokens(user);
 
 		return res.json({
-			token,
+			accessToken: tokens.accessToken,
+			refreshToken: tokens.refreshToken,
 			userId: user.id,
 			displayName: user.displayName,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(500).json({ message });
+	}
+});
+
+app.post("/api/auth/google", async (req: Request, res: Response) => {
+	try {
+		const { email, displayName, googleId } = req.body as { email?: string; displayName?: string; googleId?: string };
+
+		if (!email || !displayName || !googleId) {
+			return res.status(400).json({ message: "Datos incompletos de Google" });
+		}
+
+		type UserRow = { id: string; username: string; displayName: string };
+		let user = database
+			.prepare("SELECT * FROM users WHERE email = ?")
+			.get(email) as UserRow | undefined;
+
+		if (!user) {
+			const newId = randomUUID();
+			database.prepare(
+				"INSERT INTO users (id, username, email, googleId, passwordHash, displayName, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)"
+			).run(newId, email, email, googleId, "", displayName, new Date().toISOString());
+			user = { id: newId, username: email, displayName };
+		} else {
+			database.prepare("UPDATE users SET googleId = ? WHERE email = ?").run(googleId, email);
+		}
+
+		const tokens = generateTokens(user);
+
+		return res.json({
+			accessToken: tokens.accessToken,
+			refreshToken: tokens.refreshToken,
+			userId: user.id,
+			displayName: user.displayName,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Error inesperado";
+		return res.status(500).json({ message });
+	}
+});
+
+app.post("/api/auth/refresh", async (req: Request, res: Response) => {
+	try {
+		const { refreshToken } = req.body as { refreshToken?: string };
+		if (!refreshToken) {
+			return res.status(400).json({ message: "Refresh token requerido" });
+		}
+
+		type RefreshTokenRow = { id: string; userId: string; hashedToken: string; expiresAt: string; revoked: number };
+		const activeTokens = database
+			.prepare("SELECT * FROM refresh_tokens WHERE revoked = 0 AND expiresAt > ?")
+			.all(new Date().toISOString()) as RefreshTokenRow[];
+
+		let validToken: RefreshTokenRow | undefined;
+		for (const t of activeTokens) {
+			if (await bcrypt.compare(refreshToken, t.hashedToken)) {
+				validToken = t;
+				break;
+			}
+		}
+
+		if (!validToken) {
+			return res.status(401).json({ message: "Refresh token inválido o expirado" });
+		}
+
+		// Revoke the old token
+		database.prepare("UPDATE refresh_tokens SET revoked = 1 WHERE id = ?").run(validToken.id);
+
+		type UserRow = { id: string; displayName: string };
+		const user = database.prepare("SELECT id, displayName FROM users WHERE id = ?").get(validToken.userId) as UserRow | undefined;
+		
+		if (!user) {
+			return res.status(401).json({ message: "Usuario no encontrado" });
+		}
+
+		const tokens = generateTokens(user);
+
+		return res.json({
+			accessToken: tokens.accessToken,
+			refreshToken: tokens.refreshToken,
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Error inesperado";

@@ -130,6 +130,42 @@ const migrations: Migration[] = [
       ).run();
     },
   },
+  {
+    version: 7,
+    name: "add_oauth_columns_to_users",
+    up: (db) => {
+      db.prepare(
+        "ALTER TABLE users ADD COLUMN email TEXT",
+      ).run();
+      db.prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+      ).run();
+      db.prepare(
+        "ALTER TABLE users ADD COLUMN googleId TEXT",
+      ).run();
+    },
+  },
+  {
+    version: 8,
+    name: "create_refresh_tokens_table",
+    up: (db) => {
+      db.prepare(
+        `
+          CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id TEXT PRIMARY KEY,
+            userId TEXT NOT NULL,
+            hashedToken TEXT NOT NULL,
+            expiresAt TEXT NOT NULL,
+            revoked INTEGER NOT NULL DEFAULT 0,
+            createdAt TEXT NOT NULL
+          )
+        `,
+      ).run();
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_refresh_tokens_userId ON refresh_tokens(userId)",
+      ).run();
+    },
+  },
 ];
 
 export function runMigrations(db: Database): number {
