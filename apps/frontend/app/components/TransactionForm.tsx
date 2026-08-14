@@ -175,7 +175,7 @@ export default function TransactionForm({
     };
 
     try {
-      const transactionId = isEditing ? editingTransaction.id : crypto.randomUUID();
+      const transactionId = isEditing ? editingTransaction!.id : crypto.randomUUID();
       const endpoint = isEditing
         ? apiUrl(`/api/transactions/${transactionId}`)
         : apiUrl("/api/transactions");
