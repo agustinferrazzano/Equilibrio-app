@@ -2,6 +2,29 @@ import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
+declare module "next-auth" {
+  interface User {
+    accessToken?: string;
+    refreshToken?: string;
+  }
+  interface Session {
+    accessToken?: string;
+    error?: string;
+    user: User & {
+      id?: string;
+    };
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    accessToken?: string;
+    refreshToken?: string;
+    userId?: string;
+    accessTokenExpires?: number;
+    error?: string;
+  }
+}
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 
 export const authOptions: AuthOptions = {
