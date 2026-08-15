@@ -1,6 +1,30 @@
 @import "tailwindcss";
 
 :root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+  --card-strong: #f1f5f9;
+  --border: #e2e8f0;
+  --accent: #9a7a46;
+  --accent-strong: #c7a46a;
+  
+  --bg-gradient: radial-gradient(1100px 700px at 0% 0%, #e0f2fe 0%, transparent 60%),
+    radial-gradient(900px 600px at 100% 10%, #f3e8ff 0%, transparent 55%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  
+  --surface-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.92) 100%);
+  --surface-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
+  --panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(241, 245, 249, 0.86) 100%);
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-text: #0f172a;
+  --input-focus: #94a3b8;
+  --input-focus-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+}
+
+.dark {
   --background: #080b11;
   --foreground: #e9edf5;
   --muted: #9aa6bd;
@@ -9,15 +33,26 @@
   --border: #2b3548;
   --accent: #c7a46a;
   --accent-strong: #dfbd86;
+  
+  --bg-gradient: radial-gradient(1100px 700px at 0% 0%, #1c2b45 0%, transparent 60%),
+    radial-gradient(900px 600px at 100% 10%, #2a203a 0%, transparent 55%),
+    linear-gradient(180deg, #0a0f18 0%, #070a10 100%);
+    
+  --surface-bg: linear-gradient(180deg, rgba(18, 24, 36, 0.92) 0%, rgba(14, 19, 31, 0.92) 100%);
+  --surface-shadow: 0 24px 48px rgba(2, 6, 16, 0.45);
+  --panel-bg: linear-gradient(180deg, rgba(18, 25, 38, 0.86) 0%, rgba(14, 20, 33, 0.86) 100%);
+  --input-bg: #0f1522;
+  --input-border: #34435d;
+  --input-text: #eaf0f8;
+  --input-focus: #6f86b1;
+  --input-focus-shadow: 0 0 0 3px rgba(111, 134, 177, 0.2);
 }
 
 body {
-  background:
-    radial-gradient(1100px 700px at 0% 0%, #1c2b45 0%, transparent 60%),
-    radial-gradient(900px 600px at 100% 10%, #2a203a 0%, transparent 55%),
-    linear-gradient(180deg, #0a0f18 0%, #070a10 100%);
+  background: var(--bg-gradient);
   color: var(--foreground);
   font-family: var(--font-manrope), sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .display-font {
@@ -25,39 +60,39 @@ body {
 }
 
 .surface-card {
-  background: linear-gradient(180deg, rgb(18 24 36 / 92%) 0%, rgb(14 19 31 / 92%) 100%);
+  background: var(--surface-bg);
   border: 1px solid var(--border);
-  box-shadow: 0 24px 48px rgb(2 6 16 / 45%);
+  box-shadow: var(--surface-shadow);
   backdrop-filter: blur(8px);
 }
 
 .surface-panel {
-  background: linear-gradient(180deg, rgb(18 25 38 / 86%) 0%, rgb(14 20 33 / 86%) 100%);
-  border: 1px solid #2d3850;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
 }
 
 .ui-input {
   width: 100%;
   border-radius: 0.6rem;
-  border: 1px solid #34435d;
-  background: #0f1522;
-  color: #eaf0f8;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
   padding: 0.6rem 0.75rem;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 .ui-input::placeholder {
-  color: #70809d;
+  color: var(--muted);
 }
 
 .ui-input:focus {
   outline: none;
-  border-color: #6f86b1;
-  box-shadow: 0 0 0 3px rgb(111 134 177 / 20%);
+  border-color: var(--input-focus);
+  box-shadow: var(--input-focus-shadow);
 }
 
 .ui-label {
-  color: #b6c3d9;
+  color: var(--muted);
   font-size: 0.82rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;

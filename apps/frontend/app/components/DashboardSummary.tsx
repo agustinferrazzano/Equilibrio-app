@@ -250,11 +250,11 @@ export default function DashboardSummary({
   return (
     <section className="surface-card mb-4 rounded-xl p-4 md:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
           Dashboard Summary
         </h3>
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs text-slate-400">Scope: {scopeLabel}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Scope: {scopeLabel}</p>
           {!loading && !error && summary && items.length > 0 && (
             <button
               onClick={() => generatePortfolioPDF(summary)}
@@ -266,43 +266,43 @@ export default function DashboardSummary({
         </div>
       </div>
 
-      {loading && <p className="text-slate-400">Cargando resumen...</p>}
+      {loading && <p className="text-slate-500 dark:text-slate-400">Cargando resumen...</p>}
 
       {error && (
-        <div className="rounded-md border border-rose-300/25 bg-rose-700/20 p-3">
-          <p className="text-sm text-rose-200">{error}</p>
+        <div className="rounded-md border border-rose-300/25 bg-rose-100 dark:bg-rose-700/20 p-3">
+          <p className="text-sm text-rose-700 dark:text-rose-200">{error}</p>
         </div>
       )}
 
       {!loading && !error && items.length === 0 && (
-        <p className="text-slate-400">No hay posiciones activas para mostrar.</p>
+        <p className="text-slate-500 dark:text-slate-400">No hay posiciones activas para mostrar.</p>
       )}
 
       {!loading && !error && summary && items.length > 0 && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="surface-panel rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total en ARS</p>
-              <p className="mt-2 text-3xl font-bold text-cyan-200">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total en ARS</p>
+              <p className="mt-2 text-3xl font-bold text-cyan-700 dark:text-cyan-200">
                 {formatCurrency(summary.totalPortfolioValueARS)}
               </p>
             </div>
             <div className="surface-panel rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total en USD</p>
-              <p className="mt-2 text-3xl font-bold text-emerald-300">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total en USD</p>
+              <p className="mt-2 text-3xl font-bold text-emerald-700 dark:text-emerald-300">
                 {summary.totalPortfolioValueUSD !== null
                   ? formatCurrency(summary.totalPortfolioValueUSD)
                   : "N/A"}
               </p>
               {summary.exchangeRateUsed && (
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   MEP: {formatCurrency(summary.exchangeRateUsed)}
                 </p>
               )}
             </div>
             <div className="surface-panel rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total Invertido</p>
-              <p className="mt-2 text-3xl font-bold text-cyan-200">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total Invertido</p>
+              <p className="mt-2 text-3xl font-bold text-cyan-700 dark:text-cyan-200">
                 {formatCurrency(totalInvested)}
               </p>
             </div>
@@ -343,29 +343,29 @@ export default function DashboardSummary({
             </div>
 
             <div className="surface-panel rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Posiciones</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Posiciones</p>
               <div className="mt-4 space-y-2">
                 {items.map((item) => (
-                  <div key={item.assetId} className="rounded-md border border-slate-700/60 p-2">
+                  <div key={item.assetId} className="rounded-md border border-slate-200 dark:border-slate-700/60 p-2">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-200">{item.assetId}</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.assetId}</p>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                           item.type === "CEDEAR"
-                            ? "bg-sky-500/20 text-sky-300"
-                            : "bg-slate-500/20 text-slate-300"
+                            ? "bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300"
+                            : "bg-slate-200 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300"
                         }`}
                       >
                         {item.type === "CEDEAR" ? "CEDEAR" : "Local"}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
-                    <p className="text-xs text-slate-400">Avg: {formatCurrency(item.averagePrice)}</p>
-                    <p className="text-xs text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
-                    <p className="text-xs text-slate-400">Value: {formatCurrency(item.currentValue)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">Qty: {item.totalQuantity.toFixed(2)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">Avg: {formatCurrency(item.averagePrice)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">Current: {formatCurrency(item.currentPrice)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">Value: {formatCurrency(item.currentValue)}</p>
                     <p
                       className={`text-xs font-semibold ${
-                        item.yieldPercentage >= 0 ? "text-green-500" : "text-red-500"
+                        item.yieldPercentage >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"
                       }`}
                     >
                       Yield: {item.yieldPercentage.toFixed(2)}%

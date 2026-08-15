@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { io } from "socket.io-client";
+import { useTheme } from "next-themes";
+import { Sun, Moon } from "lucide-react";
 import DashboardSummary from "./components/DashboardSummary";
 import PortfolioEvolutionChart from "./components/PortfolioEvolutionChart";
 import TransactionForm from "./components/TransactionForm";
@@ -38,6 +42,28 @@ export default function Home() {
   const [loadingList, setLoadingList] = useState(false);
   const [alertUserId, setAlertUserId] = useState("");
   const [alertsRefreshToken, setAlertsRefreshToken] = useState(0);
+
+  const { theme, setTheme } = useTheme();
+
+  // Socket.IO Setup
+  useEffect(() => {
+    if (!authUserId) return;
+
+    const socket = io(apiUrl(""));
+    socket.on("price-alert-triggered", (event: any) => {
+      if (event.userId === authUserId) {
+        setToast({
+          type: "success",
+          message: `¡Alerta! ${event.assetId} llegó a ${event.currentPrice}`,
+        });
+        setAlertsRefreshToken((t) => t + 1);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [authUserId]);
 
   // Sync filterUserId with authenticated user on load
   useEffect(() => {
@@ -184,12 +210,20 @@ export default function Home() {
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.9)]" />
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200">System online</p>
             </div>
-            {/* User badge + logout */}
+            {/* User badge + Theme Switcher + Logout */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                 <span className="text-xs font-semibold text-emerald-300">{authDisplayName ?? authUserId}</span>
               </div>
+              <button
+                type="button"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="btn-muted rounded-full p-2 text-xs flex items-center justify-center"
+                title="Cambiar tema"
+              >
+                {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+              </button>
               <button
                 type="button"
                 onClick={logout}
@@ -238,13 +272,13 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="space-y-4">
+        <div className="space-y-4 relative z-10">
           <div className="surface-panel flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 md:p-5">
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
                 Gestion de transacciones
               </h3>
-              <p className="mt-1 text-sm text-slate-400">Abre el formulario solo cuando lo necesites.</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Abre el formulario solo cuando lo necesites.</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -270,7 +304,7 @@ export default function Home() {
           </div>
 
           <div className="surface-panel mb-4 space-y-4 rounded-xl p-4 md:p-5">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">Filtros y orden</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">Filtros y orden</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input
                   type="text"
@@ -386,107 +420,131 @@ export default function Home() {
         </div>
       </div>
 
-      {isFormOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-700/70 bg-slate-900/95 p-4 shadow-2xl md:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
-                {editingTransaction ? "Editar transaccion" : "Nueva transaccion"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
+      <AnimatePresence>
+        {isFormOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/75 p-4 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700/70 bg-white dark:bg-slate-900/95 p-4 shadow-2xl md:p-5"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
+                  {editingTransaction ? "Editar transaccion" : "Nueva transaccion"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingTransaction(null);
+                    setIsFormOpen(false);
+                  }}
+                  className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-1 text-xs text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <TransactionForm
+                onTransactionAdded={handleTransactionAdded}
+                onTransactionUpdated={handleTransactionUpdated}
+                editingTransaction={editingTransaction}
+                onCancelEdit={() => {
                   setEditingTransaction(null);
                   setIsFormOpen(false);
                 }}
-                className="rounded-md border border-slate-600 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-800"
-              >
-                Cerrar
-              </button>
-            </div>
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <TransactionForm
-              onTransactionAdded={handleTransactionAdded}
-              onTransactionUpdated={handleTransactionUpdated}
-              editingTransaction={editingTransaction}
-              onCancelEdit={() => {
-                setEditingTransaction(null);
-                setIsFormOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {isAlertFormOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/75 p-4 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700/70 bg-white dark:bg-slate-900/95 p-4 shadow-2xl md:p-5"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">
+                    🔔 Gestión de alertas de precio
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Creá nuevas alertas y gestioná las activas desde acá.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAlertFormOpen(false)}
+                  className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-1 text-xs text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+              </div>
 
-      {isAlertFormOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-xl border border-slate-700/70 bg-slate-900/95 p-4 shadow-2xl md:p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
-                  🔔 Gestión de alertas de precio
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Creá nuevas alertas y gestioná las activas desde acá.
+              {/* Shared userId input */}
+              <div className="mb-5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/40 px-4 py-3">
+                <label className="ui-label block mb-1">User ID (compartido)</label>
+                <input
+                  type="text"
+                  value={alertUserId}
+                  onChange={(e) => setAlertUserId(e.target.value)}
+                  placeholder="Ej: user-1"
+                  className="ui-input"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Este ID se usará tanto para crear la alerta como para listar las existentes.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsAlertFormOpen(false)}
-                className="rounded-md border border-slate-600 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-800"
-              >
-                Cerrar
-              </button>
-            </div>
 
-            {/* Shared userId input */}
-            <div className="mb-5 rounded-xl border border-slate-700/50 bg-slate-800/40 px-4 py-3">
-              <label className="ui-label block mb-1">User ID (compartido)</label>
-              <input
-                type="text"
-                value={alertUserId}
-                onChange={(e) => setAlertUserId(e.target.value)}
-                placeholder="Ej: user-1"
-                className="ui-input"
+              {/* Create alert form */}
+              <div className="mb-5">
+                <PriceAlertForm
+                  initialUserId={alertUserId}
+                  onUserIdChange={setAlertUserId}
+                  onAlertCreated={(createdUserId) => {
+                    setAlertUserId(createdUserId);
+                    setAlertsRefreshToken((t) => t + 1);
+                  }}
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="mb-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/60" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Alertas existentes</span>
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/60" />
+              </div>
+
+              {/* Active alerts list */}
+              <AlertList
+                userId={alertUserId}
+                refreshToken={alertsRefreshToken}
               />
-              <p className="mt-1 text-[11px] text-slate-500">
-                Este ID se usará tanto para crear la alerta como para listar las existentes.
-              </p>
-            </div>
-
-            {/* Create alert form */}
-            <div className="mb-5">
-              <PriceAlertForm
-                initialUserId={alertUserId}
-                onUserIdChange={setAlertUserId}
-                onAlertCreated={(createdUserId) => {
-                  setAlertUserId(createdUserId);
-                  setAlertsRefreshToken((t) => t + 1);
-                }}
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="mb-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-700/60" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Alertas existentes</span>
-              <div className="h-px flex-1 bg-slate-700/60" />
-            </div>
-
-            {/* Active alerts list */}
-            <AlertList
-              userId={alertUserId}
-              refreshToken={alertsRefreshToken}
-            />
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {pendingDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/75 p-4 backdrop-blur-sm">
           <div className="surface-card w-full max-w-md space-y-4 rounded-xl p-6">
-            <h3 className="display-font text-2xl text-slate-100">Confirmar eliminacion</h3>
-            <p className="text-slate-300">
+            <h3 className="display-font text-2xl text-slate-800 dark:text-slate-100">Confirmar eliminacion</h3>
+            <p className="text-slate-600 dark:text-slate-300">
               Esta accion eliminara la transaccion <strong>{pendingDeleteId}</strong>. No se puede deshacer.
             </p>
             <div className="flex justify-end gap-3">
@@ -501,7 +559,7 @@ export default function Home() {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={deletingId !== null}
-                className="rounded-md bg-rose-700 px-4 py-2 text-white transition hover:bg-rose-600 disabled:opacity-50"
+                className="rounded-md bg-rose-600 dark:bg-rose-700 px-4 py-2 text-white transition hover:bg-rose-500 dark:hover:bg-rose-600 disabled:opacity-50"
               >
                 {deletingId ? "Eliminando..." : "Confirmar"}
               </button>

@@ -1,5 +1,7 @@
 import cors from "cors";
 import express, { Request, Response, NextFunction } from "express";
+import { createServer } from "node:http";
+import { Server as SocketIOServer } from "socket.io";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
@@ -54,6 +56,14 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 const app = express();
 const port = 3001;
 
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 const connectionString = process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/equilibrio";
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
@@ -80,7 +90,7 @@ const checkPriceAlertsUseCase = new CheckPriceAlertsUseCase(
 
 // Iniciar cron job para verificar alertas de precio (no ejecutar en tests)
 if (process.env.NODE_ENV !== 'test') {
-	startPriceAlertsCronJob(checkPriceAlertsUseCase);
+	startPriceAlertsCronJob(checkPriceAlertsUseCase, io);
 }
 
 const parsePositiveInteger = (value: unknown, fallback: number): number => {
@@ -676,7 +686,7 @@ export default app;
 
 // Start server only when not running tests
 if (process.env.NODE_ENV !== 'test') {
-	app.listen(port, () => {
+	httpServer.listen(port, () => {
 		console.log(`Backend API listening on http://localhost:${port}`);
 	});
 }

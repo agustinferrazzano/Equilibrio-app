@@ -1,7 +1,11 @@
 import cron from "node-cron";
 import { CheckPriceAlertsUseCase } from "@equilibrio/core";
+import type { Server as SocketIOServer } from "socket.io";
 
-export function startPriceAlertsCronJob(checkPriceAlertsUseCase: CheckPriceAlertsUseCase): void {
+export function startPriceAlertsCronJob(
+  checkPriceAlertsUseCase: CheckPriceAlertsUseCase,
+  io: SocketIOServer
+): void {
   // Ejecutar cada 5 minutos
   cron.schedule("*/5 * * * *", async () => {
     try {
@@ -14,6 +18,7 @@ export function startPriceAlertsCronJob(checkPriceAlertsUseCase: CheckPriceAlert
           console.log(
             `  - User: ${event.userId}, Asset: ${event.assetId}, Condition: ${event.condition}, Target: ${event.targetPrice}, Current: ${event.currentPrice}`,
           );
+          io.emit("price-alert-triggered", event);
         });
       } else {
         console.log("[CronJob] No alerts triggered");

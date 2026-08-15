@@ -27,6 +27,7 @@
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
     "pg": "^8.23.0",
+    "socket.io": "^4.8.3",
     "yahoo-finance2": "^3.14.0"
   },
   "devDependencies": {
@@ -37,6 +38,7 @@
     "@types/jest": "^29.5.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.21.0",
+    "@types/socket.io": "^3.0.1",
     "@types/supertest": "^2.0.12",
     "eslint": "^10.8.1",
     "eslint-plugin-security": "^4.0.1",
