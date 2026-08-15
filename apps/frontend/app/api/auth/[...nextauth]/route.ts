@@ -146,7 +146,7 @@ export const authOptions: AuthOptions = {
     },
   },
   pages: {
-    signIn: '/login', // Adjust if you have a custom login page route
+    signIn: '/', // Using root page since we render LoginPage there
   },
   session: {
     strategy: "jwt",

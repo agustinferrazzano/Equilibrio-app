@@ -55,11 +55,11 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-4xl font-extrabold uppercase tracking-[0.08em]">
-            <span className="bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.3)]">
+            <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-cyan-200 dark:via-slate-100 dark:to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_2px_24px_rgba(56,189,248,0.3)]">
               EQUILIBRIO
             </span>
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             Plataforma de gestión de inversiones
           </p>
         </div>

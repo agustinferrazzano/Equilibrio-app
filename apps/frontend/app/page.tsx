@@ -254,7 +254,7 @@ export default function Home() {
             <div className="mt-2 flex justify-center">
               <h1 className="relative inline-block text-6xl font-extrabold uppercase tracking-[0.02em] leading-tight md:text-7xl">
                 <span aria-hidden="true" className="absolute -inset-1 blur-md opacity-55 bg-gradient-to-r from-cyan-400/45 via-blue-300/35 to-emerald-300/35" />
-                <span className="relative bg-gradient-to-r from-cyan-200 via-slate-100 to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_24px_rgba(56,189,248,0.32)]">
+                <span className="relative bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-cyan-200 dark:via-slate-100 dark:to-blue-200 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_2px_24px_rgba(56,189,248,0.32)]">
                   EQUILIBRIO
                 </span>
               </h1>
@@ -266,7 +266,7 @@ export default function Home() {
               <span className="h-px w-14 bg-gradient-to-l from-transparent to-cyan-300/70" />
             </div>
 
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400 md:text-base">
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-400 md:text-base">
               Controla movimientos de compra y venta con una interfaz limpia, segura y preparada para crecimiento.
             </p>
           </div>
@@ -384,7 +384,7 @@ export default function Home() {
           />
 
           <div className="surface-panel mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-4">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Mostrando {transactions.length} de {total} resultados
             </p>
             <div className="flex items-center gap-2">
@@ -396,7 +396,7 @@ export default function Home() {
               >
                 Anterior
               </button>
-              <span className="text-sm text-slate-300">
+              <span className="text-sm text-slate-700 dark:text-slate-300">
                 Pagina {page} de {totalPages}
               </span>
               <button

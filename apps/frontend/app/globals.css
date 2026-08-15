@@ -113,11 +113,21 @@ body {
 
 .btn-muted {
   border-radius: 0.65rem;
-  border: 1px solid #3a4862;
-  color: #ced7e8;
-  background: #141b29;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  background: var(--card-strong);
+  transition: all 0.2s ease;
 }
 
 .btn-muted:hover {
-  background: #1a2334;
+  background: var(--border);
 }
+
+.title-outline {
+  -webkit-text-stroke: 1px rgba(15, 23, 42, 0.4);
+}
+
+.dark .title-outline {
+  -webkit-text-stroke: 0px;
+}
+
