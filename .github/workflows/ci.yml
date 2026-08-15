@@ -29,6 +29,10 @@ jobs:
       - name: Test @equilibrio/core
         run: npm test --workspace=@equilibrio/core
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: ./apps/backend
+
       - name: Test backend with coverage
         run: npm test --workspace=apps/backend
 

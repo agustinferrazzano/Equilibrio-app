@@ -6,9 +6,7 @@ module.exports = {
   coverageDirectory: 'coverage',
   testMatch: ['**/src/**/?(*.)+(spec|test).[jt]s?(x)'],
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-  globals: {
-    'ts-jest': {
-      isolatedModules: true,
-    },
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true }],
   },
 };
