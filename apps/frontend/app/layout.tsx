@@ -27,6 +27,7 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${manrope.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
