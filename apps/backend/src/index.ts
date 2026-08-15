@@ -2,6 +2,8 @@ import cors from "cors";
 import express, { Request, Response, NextFunction } from "express";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import {
@@ -52,7 +54,10 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 const app = express();
 const port = 3001;
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/equilibrio";
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 const transactionRepository = new PrismaTransactionRepository(prisma);
 const priceAlertRepository = new PrismaPriceAlertRepository(prisma);
