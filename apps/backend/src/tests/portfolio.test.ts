@@ -20,18 +20,42 @@ jest.mock('../services/DolarApiService', () => {
 import app, { database } from '../index';
 
 describe('GET /api/portfolio/:userId', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
+    // Ensure the user exists to satisfy foreign key constraint
+    try {
+      await database.user.create({
+        data: {
+          id: 'test-user',
+          username: 'test-user',
+          passwordHash: 'dummy',
+          displayName: 'Test User',
+          createdAt: new Date(),
+        }
+      });
+    } catch (e) {
+      // User might already exist
+    }
+
     // Insert dummy transaction(s) into the in-memory DB
-    const now = new Date().toISOString();
-    database.prepare(
-      `INSERT INTO transactions (id, userId, assetId, assetType, type, date, quantity, price, commission)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run('tx-1', 'test-user', 'AAA', 'ACCION_LOCAL', 'BUY', now, 10, 100, 0);
+    const now = new Date();
+    await database.transaction.create({
+      data: {
+        id: 'tx-1',
+        userId: 'test-user',
+        assetId: 'AAA',
+        assetType: 'ACCION_LOCAL',
+        type: 'BUY',
+        date: now,
+        quantity: 10,
+        price: 100,
+        commission: 0
+      }
+    });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     try {
-      database.close();
+      await database.$disconnect();
     } catch (err) {
       // ignore
     }

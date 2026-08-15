@@ -1,9 +1,7 @@
 import cors from "cors";
 import express, { Request, Response, NextFunction } from "express";
-import fs from "node:fs";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
-import Database from "better-sqlite3";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import {
@@ -16,9 +14,8 @@ import {
 	PriceAlert,
 	ASSET_DICTIONARY,
 } from "@equilibrio/core";
-import { runMigrations } from "./database/migrations";
-import { SqliteTransactionRepository } from "./repositories/SqliteTransactionRepository";
-import { SqlitePriceAlertRepository } from "./repositories/SqlitePriceAlertRepository";
+import { PrismaTransactionRepository } from "./repositories/PrismaTransactionRepository";
+import { PrismaPriceAlertRepository } from "./repositories/PrismaPriceAlertRepository";
 import { YahooFinanceService } from "./services/YahooFinanceService";
 import { DolarApiService } from "./services/DolarApiService";
 import { tickerValidationService } from "./services/TickerValidationService";
@@ -55,21 +52,10 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 const app = express();
 const port = 3001;
 
-// Use in-memory DB for tests to isolate environment
-let databasePath: string;
-const dataDirectory = path.resolve(__dirname, "../data");
+const prisma = new PrismaClient();
 
-if (process.env.NODE_ENV === 'test') {
-	databasePath = ':memory:';
-} else {
-	databasePath = path.join(dataDirectory, "equilibrio.db");
-	fs.mkdirSync(dataDirectory, { recursive: true });
-}
-
-const database = new Database(databasePath);
-runMigrations(database);
-const transactionRepository = new SqliteTransactionRepository(database);
-const priceAlertRepository = new SqlitePriceAlertRepository(database);
+const transactionRepository = new PrismaTransactionRepository(prisma);
+const priceAlertRepository = new PrismaPriceAlertRepository(prisma);
 const addTransactionUseCase = new AddTransactionUseCase(transactionRepository);
 const marketDataService = new YahooFinanceService();
 const currencyService = new DolarApiService();
@@ -136,7 +122,7 @@ app.use(express.json());
 
 // ─── Auth routes (public) ────────────────────────────────────────────────────
 
-const generateTokens = (user: { id: string; displayName: string }) => {
+const generateTokens = async (user: { id: string; displayName: string }) => {
 	const accessToken = jwt.sign(
 		{ userId: user.id, displayName: user.displayName },
 		JWT_SECRET,
@@ -145,11 +131,17 @@ const generateTokens = (user: { id: string; displayName: string }) => {
 	
 	const refreshToken = randomUUID() + randomUUID();
 	const hashedToken = bcrypt.hashSync(refreshToken, 10);
-	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 	
-	database.prepare(
-		"INSERT INTO refresh_tokens (id, userId, hashedToken, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)"
-	).run(randomUUID(), user.id, hashedToken, expiresAt, new Date().toISOString());
+	await prisma.refreshToken.create({
+		data: {
+			id: randomUUID(),
+			userId: user.id,
+			hashedToken,
+			expiresAt,
+			createdAt: new Date(),
+		}
+	});
 
 	return { accessToken, refreshToken };
 };
@@ -162,10 +154,7 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 			return res.status(400).json({ message: "Usuario y contraseña requeridos" });
 		}
 
-		type UserRow = { id: string; username: string; passwordHash: string; displayName: string };
-		const user = database
-			.prepare("SELECT * FROM users WHERE username = ?")
-			.get(username) as UserRow | undefined;
+		const user = await prisma.user.findUnique({ where: { username } });
 
 		if (!user || !user.passwordHash) {
 			return res.status(401).json({ message: "Credenciales inválidas" });
@@ -176,7 +165,7 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 			return res.status(401).json({ message: "Credenciales inválidas" });
 		}
 
-		const tokens = generateTokens(user);
+		const tokens = await generateTokens(user);
 
 		return res.json({
 			accessToken: tokens.accessToken,
@@ -198,22 +187,28 @@ app.post("/api/auth/google", async (req: Request, res: Response) => {
 			return res.status(400).json({ message: "Datos incompletos de Google" });
 		}
 
-		type UserRow = { id: string; username: string; displayName: string };
-		let user = database
-			.prepare("SELECT * FROM users WHERE email = ?")
-			.get(email) as UserRow | undefined;
+		let user = await prisma.user.findUnique({ where: { email } });
 
 		if (!user) {
-			const newId = randomUUID();
-			database.prepare(
-				"INSERT INTO users (id, username, email, googleId, passwordHash, displayName, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)"
-			).run(newId, email, email, googleId, "", displayName, new Date().toISOString());
-			user = { id: newId, username: email, displayName };
+			user = await prisma.user.create({
+				data: {
+					id: randomUUID(),
+					username: email,
+					email,
+					googleId,
+					passwordHash: "",
+					displayName,
+					createdAt: new Date(),
+				}
+			});
 		} else {
-			database.prepare("UPDATE users SET googleId = ? WHERE email = ?").run(googleId, email);
+			user = await prisma.user.update({
+				where: { email },
+				data: { googleId }
+			});
 		}
 
-		const tokens = generateTokens(user);
+		const tokens = await generateTokens(user);
 
 		return res.json({
 			accessToken: tokens.accessToken,
@@ -234,12 +229,14 @@ app.post("/api/auth/refresh", async (req: Request, res: Response) => {
 			return res.status(400).json({ message: "Refresh token requerido" });
 		}
 
-		type RefreshTokenRow = { id: string; userId: string; hashedToken: string; expiresAt: string; revoked: number };
-		const activeTokens = database
-			.prepare("SELECT * FROM refresh_tokens WHERE revoked = 0 AND expiresAt > ?")
-			.all(new Date().toISOString()) as RefreshTokenRow[];
+		const activeTokens = await prisma.refreshToken.findMany({
+			where: {
+				revoked: false,
+				expiresAt: { gt: new Date() }
+			}
+		});
 
-		let validToken: RefreshTokenRow | undefined;
+		let validToken = null;
 		for (const t of activeTokens) {
 			if (await bcrypt.compare(refreshToken, t.hashedToken)) {
 				validToken = t;
@@ -252,16 +249,18 @@ app.post("/api/auth/refresh", async (req: Request, res: Response) => {
 		}
 
 		// Revoke the old token
-		database.prepare("UPDATE refresh_tokens SET revoked = 1 WHERE id = ?").run(validToken.id);
+		await prisma.refreshToken.update({
+			where: { id: validToken.id },
+			data: { revoked: true }
+		});
 
-		type UserRow = { id: string; displayName: string };
-		const user = database.prepare("SELECT id, displayName FROM users WHERE id = ?").get(validToken.userId) as UserRow | undefined;
+		const user = await prisma.user.findUnique({ where: { id: validToken.userId } });
 		
 		if (!user) {
 			return res.status(401).json({ message: "Usuario no encontrado" });
 		}
 
-		const tokens = generateTokens(user);
+		const tokens = await generateTokens(user);
 
 		return res.json({
 			accessToken: tokens.accessToken,
@@ -661,13 +660,13 @@ app.delete("/api/alerts/:id", async (req: Request, res: Response) => {
 	}
 });
 
-process.on("SIGINT", () => {
-	database.close();
+process.on("SIGINT", async () => {
+	await prisma.$disconnect();
 	process.exit(0);
 });
 
 // Export app and database for testing
-export { database };
+export { prisma as database };
 export default app;
 
 // Start server only when not running tests

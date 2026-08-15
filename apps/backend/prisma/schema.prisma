@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String         @id
+  username     String         @unique
+  email        String?        @unique
+  googleId     String?
+  passwordHash String
+  displayName  String
+  createdAt    DateTime
+  transactions Transaction[]
+  priceAlerts  PriceAlert[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id         String   @id
+  userId     String
+  assetId    String
+  assetType  String   @default("ACCION_LOCAL")
+  type       String
+  date       DateTime
+  quantity   Float
+  price      Float
+  commission Float
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assetId])
+  @@index([date])
+  @@map("transactions")
+}
+
+model PriceAlert {
+  id          String    @id
+  userId      String
+  assetId     String
+  targetPrice Float
+  condition   String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime
+  triggeredAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assetId])
+  @@index([isActive])
+  @@map("price_alerts")
+}
+
+model RefreshToken {
+  id          String   @id
+  userId      String
+  hashedToken String
+  expiresAt   DateTime
+  revoked     Boolean  @default(false)
+  createdAt   DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
